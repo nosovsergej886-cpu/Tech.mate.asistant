@@ -1,0 +1,6 @@
+{
+  "name": "Tech.Mate",
+  "description": "AI-powered messenger and knowledge base for phone repair technicians with Telegram-like chat interface and iFixit-style repair guides.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
