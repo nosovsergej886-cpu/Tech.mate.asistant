@@ -102,6 +102,7 @@ fun ProfileScreen(
     val currentLangName = LanguageService.getString("lang_name")
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text("Настройки", fontWeight = FontWeight.Bold, color = Color.White) },
@@ -1514,6 +1515,7 @@ fun AdminScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {

@@ -99,9 +99,9 @@ class ThemeManager private constructor(context: Context) {
 
     private val _designVariant = MutableStateFlow(
         try {
-            AppDesignVariant.valueOf(prefs.getString(KEY_DESIGN_VARIANT, AppDesignVariant.TELEGRAM.name) ?: AppDesignVariant.TELEGRAM.name)
+            AppDesignVariant.VK
         } catch (e: Exception) {
-            AppDesignVariant.TELEGRAM
+            AppDesignVariant.VK
         }
     )
     val designVariant: StateFlow<AppDesignVariant> = _designVariant.asStateFlow()

@@ -92,7 +92,8 @@ fun ChatsScreen(
 
     // Ensure pinned support chat and pinned team chat exist
     LaunchedEffect(currentUser) {
-        val supportId = "support_official_channel"
+        val guestEmail = currentUser?.email ?: "guest"
+        val supportId = "support_chat_$guestEmail"
         val existingSupport = dbService.chatDao.getChatById(supportId)
         if (existingSupport == null) {
             dbService.chatDao.insertChat(
@@ -159,6 +160,7 @@ fun ChatsScreen(
     )
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             if (!hideTopBar) {
                 Column(
@@ -245,7 +247,7 @@ fun ChatsScreen(
                                     }
                                     AppDesignVariant.VK -> {
                                         Text(
-                                            text = "Чаты",
+                                            text = "Tech.Mate",
                                             fontWeight = FontWeight.Bold,
                                             color = tokens.topBarContentColor,
                                             fontSize = 20.sp
@@ -557,30 +559,7 @@ fun ChatsScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // VK Stories Carousel & Filter Chips
-                    if (tokens.variant == AppDesignVariant.VK) {
-                        item {
-                            StoryOverlay(
-                                onOpenAlgorithm = { showRepairAlgorithmDialog = true }
-                            )
-                        }
-                        item {
-                            VkFilterChipsBar(
-                                selectedFilter = vkSelectedFilter,
-                                filters = vkFilters,
-                                onSelectFilter = { vkSelectedFilter = it }
-                            )
-                        }
-                    }
-
-                    // WhatsApp Stories Bar
-                    if (tokens.variant == AppDesignVariant.WHATSAPP && (whatsAppSelectedTab == 1 || hideTopBar)) {
-                        item {
-                            StoryOverlay(
-                                onOpenAlgorithm = { showRepairAlgorithmDialog = true }
-                            )
-                        }
-                    }
+                    
 
                     // Pinned Chats Section
                     if (pinnedChats.isNotEmpty()) {
@@ -604,14 +583,10 @@ fun ChatsScreen(
                                 chat = chat,
                                 isPinned = true,
                                 onClick = {
-                                    val isSupportChat = chat.id == "support_official_channel" || chat.title == "Поддержка"
-                                    if (isSupportChat) {
-                                        val isGod = authService.isGodMode() || AuthService.isGodEmail(currentUser?.email)
-                                        if (isGod) {
-                                            showSupportDeskDialog = true
-                                        } else {
-                                            showMasterSupportChatDialog = true
-                                        }
+                                    val isSupportChat = chat.id.startsWith("support_chat_") && chat.title == "Поддержка"
+                                    val isGod = authService.isGodMode() || AuthService.isGodEmail(currentUser?.email)
+                                    if (isSupportChat && isGod) {
+                                        showSupportDeskDialog = true
                                     } else {
                                         onOpenChat(chat.id)
                                     }
@@ -645,14 +620,10 @@ fun ChatsScreen(
                                 chat = chat,
                                 isPinned = false,
                                 onClick = {
-                                    val isSupportChat = chat.id == "support_official_channel" || chat.title == "Поддержка"
-                                    if (isSupportChat) {
-                                        val isGod = authService.isGodMode() || AuthService.isGodEmail(currentUser?.email)
-                                        if (isGod) {
-                                            showSupportDeskDialog = true
-                                        } else {
-                                            showMasterSupportChatDialog = true
-                                        }
+                                    val isSupportChat = chat.id.startsWith("support_chat_") && chat.title == "Поддержка"
+                                    val isGod = authService.isGodMode() || AuthService.isGodEmail(currentUser?.email)
+                                    if (isSupportChat && isGod) {
+                                        showSupportDeskDialog = true
                                     } else {
                                         onOpenChat(chat.id)
                                     }
@@ -760,17 +731,36 @@ fun ChatsScreen(
 
         // Support Desk Dialog for Head Admin
         if (showSupportDeskDialog) {
-            GodSupportDeskDialog(
-                currentUser = currentUser,
-                onDismiss = { showSupportDeskDialog = false }
-            )
-        }
-
-        // Support Chat Dialog for Master
-        if (showMasterSupportChatDialog) {
-            SupportChatDialog(
-                currentUser = currentUser,
-                onDismiss = { showMasterSupportChatDialog = false }
+            val supportChats = chats.filter { it.id.startsWith("support_chat_") }
+            AlertDialog(
+                onDismissRequest = { showSupportDeskDialog = false },
+                title = { Text("Обращения в поддержку", fontWeight = FontWeight.Bold) },
+                text = {
+                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                        if (supportChats.isEmpty()) {
+                            item { Text("Нет активных обращений", modifier = Modifier.padding(16.dp)) }
+                        }
+                        items(supportChats, key = { it.id }) { chat ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showSupportDeskDialog = false
+                                        onOpenChat(chat.id)
+                                    }
+                                    .padding(vertical = 12.dp, horizontal = 8.dp)
+                            ) {
+                                Text(chat.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(chat.lastMessage, maxLines = 2, color = Color.Gray, fontSize = 14.sp)
+                            }
+                            HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSupportDeskDialog = false }) { Text("Закрыть") }
+                }
             )
         }
 

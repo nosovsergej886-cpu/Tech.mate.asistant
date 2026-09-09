@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.example.services.AppDesignVariant
 
 val LocalIsDarkTheme = staticCompositionLocalOf { false }
-val LocalDesignVariant = staticCompositionLocalOf { AppDesignVariant.TELEGRAM }
-val LocalDesignTokens = staticCompositionLocalOf { getDesignTokens(false, AppDesignVariant.TELEGRAM) }
+val LocalDesignVariant = staticCompositionLocalOf { AppDesignVariant.VK }
+val LocalDesignTokens = staticCompositionLocalOf { getDesignTokens(false, AppDesignVariant.VK) }
 
 data class DesignTokens(
     val chatBackground: Color,

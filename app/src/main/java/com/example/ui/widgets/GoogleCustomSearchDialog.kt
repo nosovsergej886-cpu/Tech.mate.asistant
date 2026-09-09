@@ -52,7 +52,7 @@ fun GoogleCustomSearchDialog(
     val scope = rememberCoroutineScope()
     val searchService = remember { GoogleCustomSearchService.getInstance(context) }
 
-    var searchQuery by remember { mutableStateOf(initialQuery.ifBlank { "Honor X7a" }) }
+    var searchQuery by remember { mutableStateOf(initialQuery) }
     var isLoading by remember { mutableStateOf(false) }
     var searchResults by remember { mutableStateOf<List<CustomSearchImageItem>>(emptyList()) }
     var selectedImageForZoom by remember { mutableStateOf<CustomSearchImageItem?>(null) }
@@ -152,7 +152,7 @@ fun GoogleCustomSearchDialog(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Модель (например, Honor X7a test point)...", fontSize = 14.sp) },
+                    placeholder = { Text("Модель (например, Redmi 9T test point)...", fontSize = 14.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,

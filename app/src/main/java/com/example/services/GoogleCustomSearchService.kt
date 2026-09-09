@@ -464,22 +464,6 @@ class GoogleCustomSearchService private constructor(context: Context) {
                     contextLink = "https://www.martview-forum.com/"
                 )
             )
-            lower.contains("honor x7a") || lower.contains("rky-lx") -> listOf(
-                CustomSearchImageItem(
-                    title = "Honor X7a (RKY-LX1) MediaTek MT6765H BROM TestPoint Pinout",
-                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjQx7a_Brom_Testpoint_Pinout_Honor_GSM.jpg",
-                    displayLink = "unlockboot.ru",
-                    snippet = "Расположение тестпоинта Honor X7a BROM режим под экраном платы",
-                    contextLink = "https://unlockboot.ru/"
-                ),
-                CustomSearchImageItem(
-                    title = "Honor X7a PCB Boardview & Test Points GND",
-                    link = "https://www.martview-forum.com/attachments/honor-x7a-brom-pinout-jpg.71234/",
-                    displayLink = "gsmforum.ru",
-                    snippet = "Точки подключения пинцетом к массе платы для разблокировки FRP",
-                    contextLink = "https://gsmforum.ru/"
-                )
-            )
             lower.contains("redmi 9t") || lower.contains("poco m3") || lower.contains("lime") || lower.contains("citrus") -> listOf(
                 CustomSearchImageItem(
                     title = "Redmi 9T / Poco M3 Qualcomm Snapdragon 662 EDL 9008 Test Point",

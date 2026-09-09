@@ -103,28 +103,6 @@ object TestPointRepository {
             searchQuery = "redmi note 11 spes test point edl 9008 frp"
         ),
         TestPointItem(
-            id = "tp_honor_x7a",
-            brand = "Honor",
-            model = "Honor X7a (RKY-LX1 / RKY-LX2 / RKY-LX3)",
-            cpuType = "MediaTek Helio G37 (MT6765H) — BROM Mode",
-            description = "Ряд контрольных площадок расположен на левом краю материнской платы, рядом с блоком камер под металлическим экраном. Замыкается 2-я золотистая точка сверху (TP) на корпус/экран (GND).",
-            imageUrl = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjQx7a_Brom_Testpoint_Pinout_Honor_GSM.jpg",
-            additionalImages = listOf(
-                "https://www.martview-forum.com/attachments/honor-x7a-brom-pinout-jpg.71234/"
-            ),
-            frpGuide = """
-                1. Снимите заднюю крышку и открутите верхнюю защитную рамку материнской платы.
-                2. Обязательно отключите шлейф аккумулятора (АКБ).
-                3. Тонким пинцетом замкните контрольную точку TestPoint (2-я точка в вертикальном ряду слева от блока камер) на металлическую защитную рамку (GND).
-                4. Не размыкая пинцет, подключите USB Type-C кабель от ПК к телефону.
-                5. В Диспетчере устройств Windows появится порт 'MediaTek USB Port (VCOM / BROM)' или 'MTK USB Port'. Уберите пинцет.
-                6. В UnlockTool / Chimera Tool / Pandora / SP Flash Tool выберите модель 'Honor X7a' (RKY-LX1/LX2/LX3) и нажмите кнопку 'Erase FRP / Reset Gmail'.
-                7. Процедура сброса Google аккаунта занимает 5 секунд. Подключите батарею и включите телефон!
-            """.trimIndent(),
-            toolsNeeded = listOf("Тонкий пинцет", "Кабель Type-C", "UnlockTool / Chimera / Pandora / SP Flash Tool"),
-            searchQuery = "honor x7a test point rky lx2 frp unlock"
-        ),
-        TestPointItem(
             id = "tp_honor_x8",
             brand = "Honor",
             model = "Honor X8 (TFY-LX1 / TFY-LX2 / TFY-LX3)",

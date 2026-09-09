@@ -125,7 +125,7 @@ fun ChatBubble(
                     }
                 )
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
+                Column(modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 6.dp, top = 2.dp)) {
                     // AI Voice Header if AI message
                     if (!isUser) {
                         Row(
@@ -1058,20 +1058,8 @@ fun ChatBubble(
 
                         // Checkmarks for User Messages per variant
                         if (isUser) {
-                            val (checkText, checkColor) = when (tokens.variant) {
-                                AppDesignVariant.TELEGRAM -> Pair(
-                                    "✓✓",
-                                    if (isDark) TelegramCheckmarkBlue else Color(0xFF4FA050)
-                                )
-                                AppDesignVariant.VK -> Pair(
-                                    "✓",
-                                    if (isDark) VkTextSecondaryDark else VkTextSecondaryLight
-                                )
-                                AppDesignVariant.WHATSAPP -> Pair(
-                                    "✓✓",
-                                    Color(0xFF53BDEB) // Iconic WhatsApp Blue ticks
-                                )
-                            }
+                            val checkText = "✓"
+val checkColor = if (isDark) VkTextSecondaryDark else VkTextSecondaryLight
                             Text(
                                 text = checkText,
                                 fontSize = 11.sp,

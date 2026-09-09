@@ -68,30 +68,14 @@ fun StoryOverlay(
     val isDark = LocalIsDarkTheme.current
 
     // Topic & Device filter
-    var selectedTagFilter by remember { mutableStateOf("Все") }
-    val filterOptions = listOf("Все", "📱 iPhone", "📱 Xiaomi", "📱 Samsung", "🔧 BGA", "⚡ ПО / Bootloop", "🔋 Питание")
+    var selectedTagFilter by remember { mutableStateOf("Для всех") }
+    val filterOptions = listOf("Для всех", "Мой СЦ")
 
-    val filteredStories = remember(allStories, selectedTagFilter) {
-        if (selectedTagFilter == "Все") {
+    val filteredStories = remember(allStories, selectedTagFilter, currentScId) {
+        if (selectedTagFilter == "Для всех") {
             allStories
         } else {
-            val key = when (selectedTagFilter) {
-                "📱 iPhone" -> "iphone"
-                "📱 Xiaomi" -> "redmi|xiaomi|poco"
-                "📱 Samsung" -> "samsung"
-                "🔧 BGA" -> "bga|пайка|ребол"
-                "⚡ ПО / Bootloop" -> "bootloop|прошивк|ios|сбой"
-                "🔋 Питание" -> "vbus|питани|кз|акб"
-                else -> selectedTagFilter.lowercase()
-            }
-            val regex = Regex(key, RegexOption.IGNORE_CASE)
-            allStories.filter {
-                regex.containsMatchIn(it.title) ||
-                regex.containsMatchIn(it.subtitle) ||
-                regex.containsMatchIn(it.content) ||
-                regex.containsMatchIn(it.taggedDeviceModel) ||
-                regex.containsMatchIn(it.taggedCategory)
-            }
+            allStories.filter { it.authorServiceCenter == currentUser?.serviceCenterName || it.authorServiceCenter == currentScId || it.authorServiceCenter == "СЦ «ТехноМастер»" }
         }
     }
 

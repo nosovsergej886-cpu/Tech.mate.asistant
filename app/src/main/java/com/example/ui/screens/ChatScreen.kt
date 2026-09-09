@@ -324,6 +324,13 @@ fun ChatScreen(
                 }
             }
 
+            val isMultiplayerChat = chatId.startsWith("sc_team_chat_") || chatId.startsWith("support_chat_")
+
+            if (isMultiplayerChat) {
+                isThinking = false
+                return@launch // No AI response for multiplayer chats
+            }
+
             isThinking = true
             try {
                 val promptForAi = if (isVoice) {
@@ -558,7 +565,6 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .navigationBarsPadding()
                 .imePadding()
         ) {
             // Active Voice Playback Banner
@@ -1626,7 +1632,7 @@ fun ChatScreen(
         // Dialog: Google Custom Search for TestPoints
         if (showGoogleSearchDialog) {
             GoogleCustomSearchDialog(
-                initialQuery = inputText.ifBlank { "Honor X7a" },
+                initialQuery = inputText,
                 onDismiss = { showGoogleSearchDialog = false },
                 onSelectImageForChat = { imageUrl, caption ->
                     handleSendMessage("📍 **Тестпоинт из Google Search**: $caption\n\n![$caption]($imageUrl)")

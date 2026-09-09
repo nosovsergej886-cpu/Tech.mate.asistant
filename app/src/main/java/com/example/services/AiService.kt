@@ -712,7 +712,6 @@ Always provide the technician with this post-repair QC checklist:
     private fun detectModelInNormalizedText(text: String): String? {
         return when {
             // Honor Series
-            text.contains("honor x7a") || text.contains("x7a") || text.contains("rky-lx") || text.contains("rky lx") || text.contains("rky_lx") -> "Honor X7a"
             text.contains("honor x8") || text.contains("x8") || text.contains("tfy-lx") || text.contains("tfy lx") -> "Honor X8"
             text.contains("honor x7") || text.contains("cma-lx") || text.contains("cma lx") -> "Honor X7"
             text.contains("honor x9") || text.contains("any-lx") || text.contains("any lx") -> "Honor X9"
@@ -854,14 +853,6 @@ Always provide the technician with this post-repair QC checklist:
                     "2. Замкни пинцетом 2 контактные площадки TP на GND (массу).\n" +
                     "3. Подключи USB Type-C кабель -> определение порта 'Qualcomm HS-USB QDLoader 9008'.\n" +
                     "4. В UnlockTool выбери 'Honor X8' -> нажми 'Erase FRP'."
-
-                detectedModel.contains("Honor X7a", ignoreCase = true) || detectedModel.contains("X7a", ignoreCase = true) ->
-                    "**Honor X7a (MediaTek MT6765H Helio G37 - BROM Mode)**\n" +
-                    "📍 Контрольная точка расположена слева от блока камер под экранировкой.\n" +
-                    "1. Отключи АКБ.\n" +
-                    "2. Замкни точку TP на металлический экран (GND).\n" +
-                    "3. Вставь USB-кабель -> 'MediaTek USB Port (BROM)'.\n" +
-                    "4. Сброс FRP в 1 клик через SP Flash Tool / UnlockTool / Chimera."
 
                 detectedModel.contains("9T") || detectedModel.contains("M3") ->
                     "**Redmi 9T / Poco M3 (Qualcomm Snapdragon 662 - EDL 9008)**\n" +

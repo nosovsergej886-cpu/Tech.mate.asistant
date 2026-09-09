@@ -98,6 +98,7 @@ fun KnowledgeScreen(
     val brands = listOf("Apple", "Samsung", "Xiaomi", "Huawei", "Honor", "Poco", "Realme")
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text(LanguageService.getString("knowledge_title"), fontWeight = FontWeight.Bold, color = Color.White) },

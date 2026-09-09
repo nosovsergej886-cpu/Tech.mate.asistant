@@ -188,7 +188,7 @@ fun GuideCard(
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
+                                        .padding(vertical = 2.dp),
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surface
                                     )
@@ -254,7 +254,7 @@ fun GuideCard(
                             )
                             guide.steps.forEach { step ->
                                 Row(
-                                    modifier = Modifier.padding(vertical = 4.dp),
+                                    modifier = Modifier.padding(vertical = 2.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Box(
@@ -318,7 +318,7 @@ fun GuideCard(
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .padding(vertical = 2.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 color = TechGoldTestPoint.copy(alpha = 0.15f)
                             ) {
