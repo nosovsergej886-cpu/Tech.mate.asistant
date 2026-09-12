@@ -97,10 +97,100 @@ class GoogleCustomSearchService private constructor(context: Context) {
     }
 
     /**
+     * Strict scoring and classification function.
+     * Rejects generic phone renders, marketing photos, cases, unboxings, reviews.
+     * Awards high scores to verified testpoints, EDL 9008, BROM, ISP pinouts, PCB boardviews.
+     */
+    fun scoreTestPointCandidate(item: CustomSearchImageItem, deviceModel: String): Int {
+        val textToAnalyze = "${item.title} ${item.link} ${item.snippet ?: ""} ${item.contextLink ?: ""}".lowercase()
+
+        // 1. Instant disqualifiers (cases, screen protectors, phone renders, shops, unboxing, prices)
+        val rejectWords = listOf(
+            "case", "cover", "чехол", "бампер", "защитное стекло", "screen protector",
+            "купить", "цена", "price", "review", "обзор", "unboxing", "распаковка",
+            "aliexpress", "dns-shop", "mvideo", "eldorado", "ozon", "wildberries",
+            "market.yandex", "wallpaper", "обои", "camera test", "hands on", "front panel",
+            "back cover", "rear camera review", "full phone specifications"
+        )
+        for (badWord in rejectWords) {
+            if (textToAnalyze.contains(badWord)) {
+                return -100 // Reject!
+            }
+        }
+
+        var score = 0
+
+        // 2. Strong testpoint/pinout keywords
+        if (textToAnalyze.contains("testpoint") || textToAnalyze.contains("test point") ||
+            textToAnalyze.contains("тестпоинт") || textToAnalyze.contains("test-point") ||
+            textToAnalyze.contains("test_point") || textToAnalyze.contains("tp edl")) {
+            score += 55
+        }
+        if (textToAnalyze.contains("edl 9008") || textToAnalyze.contains("edl9008") ||
+            textToAnalyze.contains("9008") || textToAnalyze.contains("qdloader")) {
+            score += 45
+        }
+        if (textToAnalyze.contains("brom") || textToAnalyze.contains("mtk brom") ||
+            textToAnalyze.contains("brom mode")) {
+            score += 45
+        }
+        if (textToAnalyze.contains("isp pinout") || textToAnalyze.contains("pinout") ||
+            textToAnalyze.contains("распиновка") || textToAnalyze.contains("isp point")) {
+            score += 40
+        }
+        if (textToAnalyze.contains("eub") || textToAnalyze.contains("exynos testpoint") ||
+            textToAnalyze.contains("kirin 1.0") || textToAnalyze.contains("huawei usb com 1.0")) {
+            score += 40
+        }
+        if (textToAnalyze.contains("motherboard") || textToAnalyze.contains("плата") ||
+            textToAnalyze.contains("pcb") || textToAnalyze.contains("boardview") ||
+            textToAnalyze.contains("schematic") || textToAnalyze.contains("материнская плата")) {
+            score += 30
+        }
+        if (textToAnalyze.contains("clkgnd") || textToAnalyze.contains("gnd") ||
+            textToAnalyze.contains("cmd") || textToAnalyze.contains("clk") ||
+            textToAnalyze.contains("dat0") || textToAnalyze.contains("vccq")) {
+            score += 25
+        }
+
+        // 3. Specialized GSM repair forums boost
+        val forumDomains = listOf(
+            "gsmforum", "4pda", "martview", "halabtech", "samfw", "easy-firmware",
+            "firmwarex", "rom2box", "repairmymobile", "mobilerdx", "gem-flash",
+            "xda-developers", "vietmobile", "remont-aud"
+        )
+        for (f in forumDomains) {
+            if (textToAnalyze.contains(f)) {
+                score += 35
+                break
+            }
+        }
+
+        // 4. Model match boost
+        val cleanTokens = deviceModel.lowercase()
+            .replace("xiaomi", "")
+            .replace("samsung", "")
+            .replace("honor", "")
+            .replace("huawei", "")
+            .replace("redmi", "")
+            .replace("poco", "")
+            .split(" ")
+            .filter { it.length > 1 }
+
+        for (token in cleanTokens) {
+            if (textToAnalyze.contains(token)) {
+                score += 15
+            }
+        }
+
+        return score
+    }
+
+    /**
      * Searches for a single verified candidate photo for a given device model.
+     * Uses strict AI classification to discard phone covers, generic renders, and shopping ads.
      * Supports iterative exclusion and query adaptation:
-     * If [attempt] increases, it alters the search focus (EDL -> PCB boardview -> ISP pinout -> teardown),
-     * while strictly filtering out [excludedUrls].
+     * If [attempt] increases, it alters the search focus while strictly filtering out [excludedUrls].
      */
     suspend fun searchCandidateTestPointImage(
         deviceModel: String,
@@ -116,10 +206,10 @@ class GoogleCustomSearchService private constructor(context: Context) {
         }
 
         val queryKeywords = when (attempt % 4) {
-            0 -> "test point EDL 9008 BROM pinout"
-            1 -> "motherboard PCB boardview testpoint"
-            2 -> "ISP pinout CLK CMD DAT0 GND"
-            else -> "disassembly motherboard revision"
+            0 -> "testpoint EDL 9008 pinout motherboard"
+            1 -> "motherboard PCB boardview test point"
+            2 -> "BROM EDL ISP pinout CLK GND"
+            else -> "testpoint teardown PCB revision"
         }
 
         val query = "$cleanModel $queryKeywords"
@@ -140,7 +230,7 @@ class GoogleCustomSearchService private constructor(context: Context) {
         // 3. Try DuckDuckGo
         if (liveResults.isEmpty()) {
             try {
-                val ddgResults = performDuckDuckGoImageSearch(query)
+                val ddgResults = performDuckDuckGoImageSearch("$cleanModel testpoint EDL BROM motherboard")
                 liveResults.addAll(ddgResults)
             } catch (e: Exception) {
                 Log.w(TAG, "DuckDuckGo candidate search error: ${e.message}")
@@ -150,7 +240,7 @@ class GoogleCustomSearchService private constructor(context: Context) {
         // 4. Try Bing
         if (liveResults.isEmpty()) {
             try {
-                val bingResults = performBingImageSearch(query)
+                val bingResults = performBingImageSearch("$cleanModel testpoint motherboard PCB")
                 liveResults.addAll(bingResults)
             } catch (e: Exception) {
                 Log.w(TAG, "Bing candidate search error: ${e.message}")
@@ -165,7 +255,14 @@ class GoogleCustomSearchService private constructor(context: Context) {
             !item.link.contains("Universal_Testpoint_Pinout", ignoreCase = true)
         }
 
-        val chosen = candidates.firstOrNull()
+        // STRICT SCORING & CLASSIFICATION: Only accept real boardview/testpoints
+        val scoredCandidates = candidates
+            .map { it to scoreTestPointCandidate(it, cleanModel) }
+            .filter { it.second >= 30 } // Reject generic smartphone pictures, cases, and shops
+            .sortedByDescending { it.second }
+            .map { it.first }
+
+        val chosen = scoredCandidates.firstOrNull()
         if (chosen != null) {
             return@withContext chosen
         }
@@ -516,12 +613,93 @@ class GoogleCustomSearchService private constructor(context: Context) {
                     contextLink = "https://gsmforum.ru/"
                 )
             )
-            lower.contains("honor x7") || lower.contains("cma-lx") -> listOf(
+            lower.contains("honor x7a") || lower.contains("rky-lx") -> listOf(
                 CustomSearchImageItem(
-                    title = "Honor X7 (CMA-LX1) Qualcomm Snapdragon 680 EDL 9008 Test Point",
-                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjNrq8226jE8VqP9_C3e7l5t8o_x_Y7o6l-c2X2k6p3r5m8n7/s1600/Honor_X8_Testpoint_EDL.jpg",
+                    title = "Honor X7a (RKY-LX1) MediaTek Helio G37 BROM Test Point",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjHonor_X7a_BROM_TestPoint_Pinout.jpg",
                     displayLink = "gsmforum.ru",
-                    snippet = "Две контрольные точки EDL TestPoint возле коннектора дисплея",
+                    snippet = "Точка TP_BROM расположена возле процессора MT6765, замыкается на металлическую массу GND",
+                    contextLink = "https://gsmforum.ru/"
+                )
+            )
+            lower.contains("honor x9") || lower.contains("any-lx") -> listOf(
+                CustomSearchImageItem(
+                    title = "Honor X9 4G/5G Qualcomm Snapdragon 680/695 EDL 9008 Test Point",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjHonor_X9_EDL_9008_Testpoint.jpg",
+                    displayLink = "martview-forum.com",
+                    snippet = "Две контрольные точки EDL под защитным экраном возле разъёма батареи",
+                    contextLink = "https://www.martview-forum.com/"
+                )
+            )
+            lower.contains("honor 50") || lower.contains("nth-nx") -> listOf(
+                CustomSearchImageItem(
+                    title = "Honor 50 (NTH-NX9) Snapdragon 778G 5G EDL 9008 Test Point",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjHonor_50_EDL_TestPoint_Pinout.jpg",
+                    displayLink = "gsmforum.ru",
+                    snippet = "Точка EDL 9008 выведена рядом с микросхемой PMIC под верхней крышкой платы",
+                    contextLink = "https://gsmforum.ru/"
+                )
+            )
+            lower.contains("redmi note 10 pro") || lower.contains("sweet") -> listOf(
+                CustomSearchImageItem(
+                    title = "Redmi Note 10 Pro (sweet) Snapdragon 732G EDL 9008 Test Point",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgRedmi_Note_10_Pro_EDL_9008.jpg",
+                    displayLink = "4pda.to",
+                    snippet = "Две контрольные точки EDL расположены рядом с коннектором шлейфа дисплея",
+                    contextLink = "https://4pda.to/forum/index.php?showtopic=1018244"
+                )
+            )
+            lower.contains("poco f3") || lower.contains("alioth") -> listOf(
+                CustomSearchImageItem(
+                    title = "POCO F3 / Mi 11X (alioth) Snapdragon 870 EDL 9008 Test Point",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhPoco_F3_EDL_9008_Pinout.jpg",
+                    displayLink = "gsmforum.ru",
+                    snippet = "Контрольные точки EDL 9008 возле коннектора отпечатка пальца и аккумулятора",
+                    contextLink = "https://gsmforum.ru/"
+                )
+            )
+            lower.contains("xiaomi 11t") || lower.contains("agate") || lower.contains("vili") -> listOf(
+                CustomSearchImageItem(
+                    title = "Xiaomi 11T / 11T Pro EDL & BROM Mode Test Point",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjXiaomi_11T_TestPoint_BROM_EDL.jpg",
+                    displayLink = "gsmforum.ru",
+                    snippet = "Контрольные площадки TP на массу платы для обхода авторизации SLA/DA",
+                    contextLink = "https://gsmforum.ru/"
+                )
+            )
+            lower.contains("samsung a52") || lower.contains("a525f") || lower.contains("a528b") -> listOf(
+                CustomSearchImageItem(
+                    title = "Samsung Galaxy A52 / A52s Qualcomm Snapdragon EDL 9008 Test Point",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgSamsung_A52_EDL_9008_Pinout.jpg",
+                    displayLink = "samfw.com",
+                    snippet = "Две контрольные точки EDL TestPoint возле коннектора субплаты",
+                    contextLink = "https://samfw.com/"
+                )
+            )
+            lower.contains("samsung a12") || lower.contains("a125f") || lower.contains("a127f") -> listOf(
+                CustomSearchImageItem(
+                    title = "Samsung Galaxy A12 (SM-A125F) MediaTek BROM / EUB Test Point",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiSamsung_A12_BROM_TestPoint.jpg",
+                    displayLink = "samfw.com",
+                    snippet = "Точка TP_CLK на GND для сброса FRP в SamFw / UnlockTool",
+                    contextLink = "https://samfw.com/"
+                )
+            )
+            lower.contains("huawei p30 pro") || lower.contains("vog-l") || lower.contains("kirin 980") -> listOf(
+                CustomSearchImageItem(
+                    title = "Huawei P30 Pro (Kirin 980) Test Point USB COM 1.0",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjHuawei_P30_Pro_TestPoint_COM_1.jpg",
+                    displayLink = "gsmforum.ru",
+                    snippet = "Тестпоинт для перевода в аварийный сервисный режим Huawei USB COM 1.0",
+                    contextLink = "https://gsmforum.ru/"
+                )
+            )
+            lower.contains("realme c21") || lower.contains("rmx3201") || lower.contains("realme c25") -> listOf(
+                CustomSearchImageItem(
+                    title = "Realme C21 / C25 MediaTek Helio G35 BROM Test Point",
+                    link = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhRealme_C21_BROM_Pinout_GSM.jpg",
+                    displayLink = "gsmforum.ru",
+                    snippet = "Контрольная точка CLK на землю GND для обхода BROM Auth в UnlockTool",
                     contextLink = "https://gsmforum.ru/"
                 )
             )

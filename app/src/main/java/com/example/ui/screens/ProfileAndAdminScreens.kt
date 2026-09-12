@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -22,8 +23,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -32,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.example.model.ActivityLogEntity
 import com.example.model.InvitationEntity
 import com.example.model.PasswordResetRequestEntity
+import com.example.model.PostEntity
 import com.example.model.ServiceCenterEntity
 import com.example.model.SupportMessageEntity
 import com.example.model.SupportTicketEntity
@@ -44,7 +50,6 @@ import com.example.services.ThemeManager
 import com.example.ui.theme.*
 import com.example.ui.util.filterDuplicateInput
 import com.example.ui.widgets.GoogleServicesSyncDialog
-import com.example.ui.widgets.ThemeSwitcherDialog
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -71,6 +76,9 @@ fun ProfileScreen(
     val isGodMode = authService.isGodMode()
     val isServiceAdmin = authService.isServiceAdmin()
     val currentDesignVariant by themeManager.designVariant.collectAsState()
+    val tokens = LocalDesignTokens.current
+    val haptic = LocalHapticFeedback.current
+    val isPremium = tokens.variant == AppDesignVariant.PREMIUM_TECHMATE
 
     var isEditingName by remember { mutableStateOf(false) }
     var editedName by remember { mutableStateOf("") }
@@ -81,10 +89,13 @@ fun ProfileScreen(
 
     var showSearchApiDialog by remember { mutableStateOf(false) }
     var showGoogleServicesDialog by remember { mutableStateOf(false) }
-    var showDesignSwitcherDialog by remember { mutableStateOf(false) }
+    var showCustomHostDialog by remember { mutableStateOf(false) }
     var showAiVoiceDialog by remember { mutableStateOf(false) }
     var showSupportDialog by remember { mutableStateOf(false) }
     var showRedeemInviteDialog by remember { mutableStateOf(false) }
+
+    val hostSyncService = remember { com.example.services.CustomHostSyncService.getInstance(context) }
+    val hostSyncStatus by hostSyncService.syncStatus.collectAsState()
 
     val searchService = remember { com.example.services.GoogleCustomSearchService.getInstance(context) }
     var customSearchApiKey by remember { mutableStateOf(searchService.getApiKey()) }
@@ -99,26 +110,71 @@ fun ProfileScreen(
         }
     }
 
+    val allFeedPosts by dbService.postDao.getAllPosts().collectAsState(initial = emptyList())
+    val myPosts = remember(allFeedPosts, currentUser) {
+        val userEmail = currentUser?.email?.lowercase() ?: ""
+        val userName = currentUser?.name?.lowercase() ?: ""
+        allFeedPosts.filter { post ->
+            (userEmail.isNotEmpty() && post.authorEmail.lowercase() == userEmail) ||
+            (userName.isNotEmpty() && post.authorName.lowercase() == userName)
+        }
+    }
+    val totalFeedPosts = myPosts.size
+    val totalLikesReceived = remember(myPosts) { myPosts.sumOf { it.likesCount } }
+    val totalCommentsReceived = remember(myPosts) { myPosts.sumOf { it.commentsCount } }
+    val totalViewsReceived = remember(myPosts) { myPosts.sumOf { it.viewsCount } }
+    val postPopularityScore = remember(totalLikesReceived, totalCommentsReceived, totalViewsReceived) {
+        totalLikesReceived * 3 + totalCommentsReceived * 2 + (totalViewsReceived / 10)
+    }
+    val sortedPostsByPopularity = remember(myPosts) {
+        myPosts.sortedByDescending { it.likesCount * 3 + it.commentsCount * 2 + it.viewsCount }
+    }
+
     val currentLangName = LanguageService.getString("lang_name")
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Text("Настройки", fontWeight = FontWeight.Bold, color = Color.White) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Профиль и Настройки",
+                            fontWeight = FontWeight.Bold,
+                            color = if (isPremium) (if (isDarkTheme) Color.White else Color(0xFF0F172A)) else Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isPremium) Color(0xFF6366F1).copy(alpha = 0.2f) else Color.White.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                if (isPremium) "💎 TECH.MATE" else "PRO",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isPremium) Color(0xFF818CF8) else Color.White,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = if (isPremium) (if (isDarkTheme) Color.White else Color(0xFF0F172A)) else Color.White
+                            )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = TelegramHeader
+                    containerColor = if (isPremium) (if (isDarkTheme) Color(0xFF0F172A).copy(alpha = 0.85f) else Color.White.copy(alpha = 0.85f)) else TelegramHeader
                 )
             )
         },
-        containerColor = if (isDarkTheme) TelegramDarkBg else TechBackgroundLight
+        containerColor = if (isPremium) tokens.chatBackground else (if (isDarkTheme) TelegramDarkBg else TechBackgroundLight)
     ) { paddingValues ->
 
         LazyColumn(
@@ -129,9 +185,20 @@ fun ProfileScreen(
         ) {
             // Master Profile Header Card
             item {
-                Surface(
-                    color = if (isDarkTheme) TelegramDarkSurface else Color.White,
-                    modifier = Modifier.fillMaxWidth()
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isPremium) 12.dp else 0.dp, vertical = if (isPremium) 4.dp else 0.dp),
+                    shape = if (isPremium) RoundedCornerShape(20.dp) else RectangleShape,
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isPremium) {
+                            if (isDarkTheme) Color(0xFF1E293B).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.9f)
+                        } else {
+                            if (isDarkTheme) TelegramDarkSurface else Color.White
+                        }
+                    ),
+                    border = if (isPremium) BorderStroke(1.dp, if (isDarkTheme) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f)) else null,
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isPremium) 2.dp else 0.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -144,7 +211,10 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .size(80.dp)
                                 .clip(CircleShape)
-                                .background(if (isGodMode) TechGoldTestPoint else TelegramBlue),
+                                .then(
+                                    if (isPremium) Modifier.background(Brush.linearGradient(listOf(TechMateIndigo, TechMatePurple)))
+                                    else Modifier.background(if (isGodMode) TechGoldTestPoint else TelegramBlue)
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -210,9 +280,20 @@ fun ProfileScreen(
 
             // Stats Cards
             item {
-                Surface(
-                    color = if (isDarkTheme) TelegramDarkSurface else Color.White,
-                    modifier = Modifier.fillMaxWidth()
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isPremium) 12.dp else 0.dp, vertical = if (isPremium) 4.dp else 0.dp),
+                    shape = if (isPremium) RoundedCornerShape(18.dp) else RectangleShape,
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isPremium) {
+                            if (isDarkTheme) Color(0xFF1E293B).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.9f)
+                        } else {
+                            if (isDarkTheme) TelegramDarkSurface else Color.White
+                        }
+                    ),
+                    border = if (isPremium) BorderStroke(1.dp, if (isDarkTheme) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f)) else null,
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isPremium) 2.dp else 0.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -227,27 +308,236 @@ fun ProfileScreen(
                 }
             }
 
+            // Master Posts Feed Popularity & Statistics (VK-like)
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = if (isPremium) 12.dp else 0.dp, vertical = if (isPremium) 4.dp else 0.dp),
+                    shape = if (isPremium) RoundedCornerShape(18.dp) else RectangleShape,
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isPremium) {
+                            if (isDarkTheme) Color(0xFF1E293B).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.9f)
+                        } else {
+                            if (isDarkTheme) TelegramDarkSurface else Color.White
+                        }
+                    ),
+                    border = if (isPremium) BorderStroke(1.dp, if (isDarkTheme) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f)) else null,
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isPremium) 2.dp else 0.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.TrendingUp,
+                                    contentDescription = null,
+                                    tint = TechGoldTestPoint,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Статистика публикаций в Ленте",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = if (isDarkTheme) Color.White else Color.Black
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = TechGoldTestPoint.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    "⚡ $postPopularityScore очков",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TechGoldTestPoint,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 4 Metrics Grid
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "$totalFeedPosts",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp,
+                                    color = TelegramPrimary
+                                )
+                                Text("Постов", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "$totalLikesReceived",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp,
+                                    color = Color(0xFFEF4444)
+                                )
+                                Text("Лайков", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "$totalCommentsReceived",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp,
+                                    color = Color(0xFF3B82F6)
+                                )
+                                Text("Ответов", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "$totalViewsReceived",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp,
+                                    color = Color(0xFF10B981)
+                                )
+                                Text("Охватов", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        HorizontalDivider(color = TelegramDivider.copy(alpha = 0.2f))
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            "Популярность кейсов ремонта:",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            color = if (isDarkTheme) Color.White.copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.85f)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        if (sortedPostsByPopularity.isEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isDarkTheme) Color(0xFF1E293B) else Color(0xFFF8FAFC),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        "У вас пока нет публикаций в ленте мастеров.",
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        "Публикуйте интересные случаи и замеры, чтобы делиться опытом и отслеживать рейтинг полезности!",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                sortedPostsByPopularity.forEachIndexed { index, post ->
+                                    val badgeText = when (index) {
+                                        0 -> "🔥 ТОП #1 (Высокий охват)"
+                                        1 -> "⭐ Популярный"
+                                        else -> "📊 Обычный"
+                                    }
+                                    val badgeColor = when (index) {
+                                        0 -> Color(0xFFF59E0B)
+                                        1 -> Color(0xFF3B82F6)
+                                        else -> Color.Gray
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (isDarkTheme) Color(0xFF243247) else Color(0xFFF1F5F9),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                if (post.taggedDevice.isNotBlank()) {
+                                                    Text(
+                                                        "📱 ${post.taggedDevice}",
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 13.sp,
+                                                        color = if (isDarkTheme) Color(0xFF93C5FD) else Color(0xFF1D4ED8)
+                                                    )
+                                                } else {
+                                                    Text("Кейс ремонта", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                }
+
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = badgeColor.copy(alpha = 0.15f)
+                                                ) {
+                                                    Text(
+                                                        badgeText,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = badgeColor,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                post.content,
+                                                fontSize = 12.sp,
+                                                maxLines = 2,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                color = if (isDarkTheme) Color.White.copy(alpha = 0.85f) else Color.Black.copy(alpha = 0.8f)
+                                            )
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                                Text("❤️ ${post.likesCount}", fontSize = 11.sp, color = Color(0xFFEF4444), fontWeight = FontWeight.SemiBold)
+                                                Text("💬 ${post.commentsCount}", fontSize = 11.sp, color = Color(0xFF3B82F6), fontWeight = FontWeight.SemiBold)
+                                                Text("👁️ ${post.viewsCount}", fontSize = 11.sp, color = Color(0xFF10B981), fontWeight = FontWeight.SemiBold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Settings Group 1: Appearance & AI Voice / Persona
             item {
                 TelegramSettingsGroup(isDark = isDarkTheme) {
                     TelegramSettingsRow(
-                        icon = Icons.Default.Palette,
-                        iconBg = Color(0xFFE91E63),
-                        title = "Стиль оформления (Дизайн)",
-                        subtitle = currentDesignVariant.titleRu,
-                        onClick = { showDesignSwitcherDialog = true }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = TelegramDivider.copy(alpha = 0.2f))
-                    TelegramSettingsRow(
                         icon = Icons.Default.DarkMode,
                         iconBg = Color(0xFF5C6BC0),
-                        title = "Тёмная тема",
-                        subtitle = if (isDarkTheme) "Включена" else "Выключена",
+                        title = "Тёмная тема (Dark Mode)",
+                        subtitle = "Фирменный стиль Tech.Mate • Всегда активен",
                         trailing = {
-                            Switch(
-                                checked = isDarkTheme,
-                                onCheckedChange = onToggleTheme
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFF5C6BC0).copy(alpha = 0.2f)
+                            ) {
+                                Text(
+                                    "Dark",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF9FA8DA),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
                         }
                     )
                     HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = TelegramDivider.copy(alpha = 0.2f))
@@ -314,6 +604,14 @@ fun ProfileScreen(
                         subtitle = "Синхронизация Firestore Spark (бесплатно) и бэкап на Google Диск",
                         onClick = { showGoogleServicesDialog = true }
                     )
+                    HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = TelegramDivider.copy(alpha = 0.2f))
+                    TelegramSettingsRow(
+                        icon = Icons.Default.Dns,
+                        iconBg = Color(0xFF0288D1),
+                        title = "Свой сайт / Хостинг (12 ГБ)",
+                        subtitle = if (hostSyncService.getServerUrl().isNotBlank()) "Подключен: ${hostSyncService.getServerUrl()}" else "Авто-синхронизация постов, историй и базы знаний",
+                        onClick = { showCustomHostDialog = true }
+                    )
                 }
             }
 
@@ -335,14 +633,25 @@ fun ProfileScreen(
 
             // Logout
             item {
-                Surface(
-                    color = if (isDarkTheme) TelegramDarkSurface else Color.White,
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = if (isPremium) 12.dp else 0.dp, vertical = if (isPremium) 4.dp else 0.dp)
                         .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             authService.logout()
                             onLogout()
+                        },
+                    shape = if (isPremium) RoundedCornerShape(18.dp) else RectangleShape,
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isPremium) {
+                            if (isDarkTheme) Color(0xFF1E293B).copy(alpha = 0.7f) else Color.White.copy(alpha = 0.9f)
+                        } else {
+                            if (isDarkTheme) TelegramDarkSurface else Color.White
                         }
+                    ),
+                    border = if (isPremium) BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.25f)) else null,
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isPremium) 2.dp else 0.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -389,11 +698,10 @@ fun ProfileScreen(
             )
         }
 
-        // Theme Switcher Dialog
-        if (showDesignSwitcherDialog) {
-            ThemeSwitcherDialog(
-                themeManager = themeManager,
-                onDismiss = { showDesignSwitcherDialog = false }
+        // Custom Host Web Sync Dialog (12 GB)
+        if (showCustomHostDialog) {
+            com.example.ui.widgets.CustomHostSyncDialog(
+                onDismiss = { showCustomHostDialog = false }
             )
         }
 
@@ -1362,12 +1670,33 @@ fun TelegramSettingsGroup(
     isDark: Boolean,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
-        color = if (isDark) TelegramDarkSurface else Color.White,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column {
-            content()
+    val tokens = LocalDesignTokens.current
+    val isPremium = tokens.variant == AppDesignVariant.PREMIUM_TECHMATE
+
+    if (isPremium) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF1E293B).copy(alpha = 0.65f) else Color.White.copy(alpha = 0.85f)
+            ),
+            border = BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column {
+                content()
+            }
+        }
+    } else {
+        Surface(
+            color = if (isDark) TelegramDarkSurface else Color.White,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column {
+                content()
+            }
         }
     }
 }
@@ -1381,17 +1710,21 @@ fun TelegramSettingsRow(
     trailing: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
+    val haptic = LocalHapticFeedback.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() })
+            .clickable(enabled = onClick != null, onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick?.invoke()
+            })
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(36.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(iconBg),
             contentAlignment = Alignment.Center
         ) {

@@ -265,12 +265,28 @@ object TestPointRepository {
             searchQuery = "realme c21 brom test point mtk frp"
         ),
         TestPointItem(
+            id = "tp_honor_x7a",
+            brand = "Honor",
+            model = "Honor X7a (RKY-LX1 / RKY-LX2)",
+            cpuType = "MediaTek Helio G37 (BROM Mode)",
+            description = "Точка TP_BROM расположена возле процессора MT6765, замыкается на металлическую массу GND.",
+            imageUrl = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjHonor_X7a_BROM_TestPoint_Pinout.jpg",
+            frpGuide = """
+                1. Отключите аккумулятор.
+                2. Замкните контрольную точку BROM на корпус (GND).
+                3. Вставьте кабель Type-C в ПК -> определение MediaTek USB Port.
+                4. В UnlockTool нажмите 'BROM | Erase FRP'.
+            """.trimIndent(),
+            toolsNeeded = listOf("Пинцет", "UnlockTool / SP Flash Tool"),
+            searchQuery = "honor x7a brom test point frp rky lx1"
+        ),
+        TestPointItem(
             id = "tp_apple_dfu",
             brand = "Apple",
             model = "iPhone 11 / 12 / 13 / 14 / 15 (DFU & Recovery)",
             cpuType = "Apple A-Series (DFU Mode / Hardware Key Combos)",
             description = "Аппаратный ввод в режим DFU (Direct Firmware Upgrade) без разборки устройства через комбинацию физических кнопок.",
-            imageUrl = "https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=800",
+            imageUrl = "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhApple_iPhone_DFU_Mode_Pinout_Diagram.jpg",
             frpGuide = """
                 1. Подключите iPhone к компьютеру кабелем Lightning / Type-C.
                 2. Быстро нажмите и отпустите 'Громкость +'.
@@ -306,13 +322,84 @@ object TestPointRepository {
         items.removeAll { it.id == id }
     }
 
+    private fun normalizeModelSearch(input: String): String {
+        return input.lowercase().trim()
+            .replace("хонор", "honor")
+            .replace("редми", "redmi")
+            .replace("сяоми", "xiaomi")
+            .replace("самсунг", "samsung")
+            .replace("хуавей", "huawei")
+            .replace("поко", "poco")
+            .replace("реалми", "realme")
+            .replace("ноут", "note")
+            .replace("нот", "note")
+            .replace("про", "pro")
+            .replace("плюс", "plus")
+            .replace("х8", "x8")
+            .replace("х7", "x7")
+            .replace("х7а", "x7a")
+            .replace("х7a", "x7a")
+            .replace("х9", "x9")
+            .replace("а51", "a51")
+            .replace("а52", "a52")
+            .replace("а12", "a12")
+            .replace("а32", "a32")
+            .replace("а50", "a50")
+            .replace("с21", "c21")
+            .replace("с25", "c25")
+            .replace("9т", "9t")
+            .replace("м3", "m3")
+            .replace("тестпоинт", "")
+            .replace("testpoint", "")
+            .replace("test point", "")
+            .replace("схема", "")
+            .replace("плата", "")
+            .replace("фотка", "")
+            .replace("фото", "")
+            .replace("где", "")
+            .replace("точка", "")
+            .replace("edl", "")
+            .replace("brom", "")
+            .replace("9008", "")
+            .replace("frp", "")
+            .trim()
+    }
+
     fun findByModel(modelQuery: String): TestPointItem? {
-        val q = modelQuery.lowercase()
-        return items.firstOrNull {
-            q.contains(it.brand.lowercase()) && q.contains(it.model.lowercase().take(6)) ||
-            it.model.lowercase().contains(q) ||
+        val q = normalizeModelSearch(modelQuery)
+        if (q.isBlank()) return null
+
+        // 1. Direct contains or reverse contains
+        val direct = items.firstOrNull {
+            val itemModelNorm = normalizeModelSearch(it.model)
+            val itemBrandNorm = it.brand.lowercase()
+            itemModelNorm.contains(q) || q.contains(itemModelNorm.take(8)) ||
             q.contains(it.id.removePrefix("tp_").replace("_", " "))
         }
+        if (direct != null) return direct
+
+        // 2. Token-based matching (e.g. "honor" and "x8")
+        val searchTokens = q.split(" ", "-", "_", "/").filter { it.length >= 2 }
+        if (searchTokens.isNotEmpty()) {
+            val tokenMatch = items.firstOrNull { item ->
+                val fullTarget = "${item.brand} ${item.model} ${item.id}".lowercase()
+                searchTokens.all { fullTarget.contains(it) }
+            }
+            if (tokenMatch != null) return tokenMatch
+        }
+
+        // 3. Fallback: match any specific model number token (e.g. "x8", "a51", "tapas", "ruby", "sweet")
+        val specificModelTokens = searchTokens.filter { token ->
+            token.any { it.isDigit() } || token.length >= 3
+        }
+        for (smt in specificModelTokens) {
+            val match = items.firstOrNull { item ->
+                "${item.model} ${item.id}".lowercase().contains(smt)
+            }
+            if (match != null) return match
+        }
+
+        return null
     }
 }
 

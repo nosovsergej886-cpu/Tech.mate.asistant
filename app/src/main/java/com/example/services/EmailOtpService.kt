@@ -1,5 +1,6 @@
 package com.example.services
 
+import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,10 +21,56 @@ object EmailOtpService {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    suspend fun sendOtpCode(recipientEmail: String, code: String): Boolean {
+    suspend fun sendOtpCode(recipientEmail: String, code: String, context: Context? = null): Boolean {
         return withContext(Dispatchers.IO) {
+            val cleanEmail = recipientEmail.trim()
+            if (cleanEmail.isBlank() || !cleanEmail.contains("@")) return@withContext false
+
+            // 1. Приоритетный канал: корпоративная почта своего хостинга / сайта
+            if (context != null) {
+                try {
+                    val hostSync = CustomHostSyncService.getInstance(context)
+                    if (hostSync.isCorporateEmailEnabled() && hostSync.getServerUrl().isNotBlank()) {
+                        Log.i("EmailOtpService", "Отправка кода через корпоративную почту хостинга (${hostSync.getServerUrl()})...")
+                        val (success, msg) = hostSync.sendOtpCodeViaHost(cleanEmail, code)
+                        if (success) {
+                            Log.i("EmailOtpService", "Успешно отправлено через корпоративную почту: $msg")
+                            return@withContext true
+                        } else {
+                            Log.w("EmailOtpService", "Хостинг вернул ошибку ($msg), переключаемся на резервный шлюз...")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("EmailOtpService", "Сбой вызова корпоративной почты хостинга: ${e.message}")
+                }
+            } else {
+                try {
+                    val jsonPayload = JSONObject().apply {
+                        put("action", "send_otp")
+                        put("apiKey", CustomHostSyncService.DEFAULT_API_KEY)
+                        put("recipient", cleanEmail)
+                        put("code", code)
+                        put("senderEmail", CustomHostSyncService.DEFAULT_CORPORATE_EMAIL)
+                        put("senderName", CustomHostSyncService.DEFAULT_SENDER_NAME)
+                    }
+                    val requestBody = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                    val request = Request.Builder()
+                        .url(CustomHostSyncService.DEFAULT_SERVER_URL)
+                        .post(requestBody)
+                        .build()
+                    val response = httpClient.newCall(request).execute()
+                    val body = response.body?.string() ?: ""
+                    if (response.isSuccessful && body.contains("\"success\":true")) {
+                        Log.i("EmailOtpService", "Успешно отправлено напрямую через ${CustomHostSyncService.DEFAULT_SERVER_URL}")
+                        return@withContext true
+                    }
+                } catch (e: Exception) {
+                    Log.w("EmailOtpService", "Сбой вызова прямого tech-mate.ru: ${e.message}")
+                }
+            }
+
+            // 2. Резервный шлюз: Resend API
             try {
-                val cleanEmail = recipientEmail.trim()
                 val htmlContent = """
                     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 540px; margin: 0 auto; background: #ffffff; border: 1px solid #e0e6ed; border-radius: 12px; overflow: hidden;">
                         <div style="background: linear-gradient(135deg, #0288D1 0%, #01579B 100%); padding: 24px 20px; text-align: center;">

@@ -128,6 +128,59 @@ class GoogleDriveBackupService private constructor(private val context: Context)
         }
         root.put("stories", storiesArray)
 
+        // 5. Posts
+        val posts = dbService.postDao.getAllPostsSync()
+        val postsArray = JSONArray()
+        for (post in posts) {
+            val p = JSONObject()
+            p.put("id", post.id)
+            p.put("authorName", post.authorName)
+            p.put("authorEmail", post.authorEmail)
+            p.put("authorServiceCenter", post.authorServiceCenter)
+            p.put("authorServiceCenterId", post.authorServiceCenterId)
+            p.put("content", post.content)
+            p.put("mediaType", post.mediaType)
+            p.put("mediaUrl", post.mediaUrl)
+            p.put("mediaTitle", post.mediaTitle)
+            p.put("taggedDevice", post.taggedDevice)
+            p.put("likesCount", post.likesCount)
+            p.put("commentsCount", post.commentsCount)
+            p.put("viewsCount", post.viewsCount)
+            p.put("createdAt", post.createdAt)
+            postsArray.put(p)
+        }
+        root.put("posts", postsArray)
+
+        // 6. Post Comments
+        val comments = dbService.postCommentDao.getAllCommentsSync()
+        val commentsArray = JSONArray()
+        for (c in comments) {
+            val cObj = JSONObject()
+            cObj.put("id", c.id)
+            cObj.put("postId", c.postId)
+            cObj.put("authorName", c.authorName)
+            cObj.put("authorEmail", c.authorEmail)
+            cObj.put("authorServiceCenter", c.authorServiceCenter)
+            cObj.put("content", c.content)
+            cObj.put("createdAt", c.createdAt)
+            commentsArray.put(cObj)
+        }
+        root.put("post_comments", commentsArray)
+
+        // 7. Offline Saved Knowledge Items
+        val savedKbItems = dbService.savedKnowledgeDao.getAllItemsSync()
+        val savedKbArray = JSONArray()
+        for (item in savedKbItems) {
+            val sk = JSONObject()
+            sk.put("id", item.id)
+            sk.put("query", item.query)
+            sk.put("aiResponse", item.aiResponse)
+            sk.put("timestamp", item.timestamp)
+            sk.put("tags", item.tags)
+            savedKbArray.put(sk)
+        }
+        root.put("saved_knowledge_items", savedKbArray)
+
         root.toString(2)
     }
 
@@ -287,12 +340,57 @@ class GoogleDriveBackupService private constructor(private val context: Context)
                 }
             }
 
+            // 4. Restore Posts
+            var postsRestored = 0
+            if (root.has("posts")) {
+                val postsArray = root.getJSONArray("posts")
+                for (i in 0 until postsArray.length()) {
+                    val p = postsArray.getJSONObject(i)
+                    val post = PostEntity(
+                        id = p.optString("id", UUID.randomUUID().toString()),
+                        authorName = p.optString("authorName", "Мастер"),
+                        authorEmail = p.optString("authorEmail", ""),
+                        authorServiceCenter = p.optString("authorServiceCenter", "СЦ"),
+                        authorServiceCenterId = p.optString("authorServiceCenterId", "default"),
+                        content = p.optString("content", ""),
+                        mediaType = p.optString("mediaType", "NONE"),
+                        mediaUrl = p.optString("mediaUrl", ""),
+                        mediaTitle = p.optString("mediaTitle", ""),
+                        taggedDevice = p.optString("taggedDevice", ""),
+                        likesCount = p.optInt("likesCount", 0),
+                        commentsCount = p.optInt("commentsCount", 0),
+                        viewsCount = p.optInt("viewsCount", 1),
+                        createdAt = p.optLong("createdAt", System.currentTimeMillis())
+                    )
+                    dbService.postDao.insertPost(post)
+                    postsRestored++
+                }
+            }
+
+            // 5. Restore Saved Knowledge
+            var savedKbRestored = 0
+            if (root.has("saved_knowledge_items")) {
+                val savedKbArray = root.getJSONArray("saved_knowledge_items")
+                for (i in 0 until savedKbArray.length()) {
+                    val sk = savedKbArray.getJSONObject(i)
+                    val item = SavedKnowledgeItem(
+                        id = sk.optString("id", UUID.randomUUID().toString()),
+                        query = sk.optString("query", ""),
+                        aiResponse = sk.optString("aiResponse", ""),
+                        timestamp = sk.optLong("timestamp", System.currentTimeMillis()),
+                        tags = sk.optString("tags", "")
+                    )
+                    dbService.savedKnowledgeDao.insertItem(item)
+                    savedKbRestored++
+                }
+            }
+
             RestoreResult(
                 success = true,
                 ordersRestored = ordersRestored,
                 kbEntriesRestored = kbRestored,
                 storiesRestored = storiesRestored,
-                message = "Восстановлено: заказов ($ordersRestored), инструкций ($kbRestored), историй ($storiesRestored)"
+                message = "Восстановлено: заказов ($ordersRestored), постов ($postsRestored), инструкций ($kbRestored), базы знаний ($savedKbRestored)"
             )
         } catch (e: Exception) {
             RestoreResult(

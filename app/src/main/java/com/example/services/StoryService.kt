@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-class StoryService private constructor(context: Context) {
+class StoryService private constructor(private val context: Context) {
 
     private val dbService = DatabaseService.getInstance(context)
     private val storyDao = dbService.storyDao
@@ -105,6 +105,9 @@ class StoryService private constructor(context: Context) {
         )
 
         storyDao.insertStory(entity)
+        try {
+            CustomHostSyncService.getInstance(context).autoPushStory(entity)
+        } catch (_: Exception) {}
         return entity
     }
 

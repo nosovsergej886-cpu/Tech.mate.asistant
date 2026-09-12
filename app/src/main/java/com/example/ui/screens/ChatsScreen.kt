@@ -38,12 +38,9 @@ import com.example.services.DatabaseService
 import com.example.services.LanguageService
 import com.example.services.ThemeManager
 import com.example.services.AppDesignVariant
-import com.example.ui.components.StoriesBar
-import com.example.ui.components.StoryOverlay
 import com.example.ui.theme.*
 import com.example.ui.util.filterDuplicateInput
 import com.example.ui.widgets.RepairAlgorithmDialog
-import com.example.ui.widgets.ThemeSwitcherDialog
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -139,7 +136,6 @@ fun ChatsScreen(
     var showSupportDeskDialog by remember { mutableStateOf(false) }
     var showMasterSupportChatDialog by remember { mutableStateOf(false) }
     val themeManager = remember { ThemeManager.getInstance(context) }
-    var showThemeSwitcherDialog by remember { mutableStateOf(false) }
     var showRepairAlgorithmDialog by remember { mutableStateOf(false) }
 
     // Telegram structural folder tabs
@@ -171,6 +167,7 @@ fun ChatsScreen(
                     TopAppBar(
                     navigationIcon = {
                         when (tokens.variant) {
+                            AppDesignVariant.PREMIUM_TECHMATE,
                             AppDesignVariant.TELEGRAM -> null
                             AppDesignVariant.VK -> {
                                 Box(
@@ -237,6 +234,14 @@ fun ChatsScreen(
                                 )
                             } else {
                                 when (tokens.variant) {
+                                    AppDesignVariant.PREMIUM_TECHMATE -> {
+                                        Text(
+                                            text = "Tech.Mate 💎",
+                                            fontWeight = FontWeight.Bold,
+                                            color = tokens.topBarContentColor,
+                                            fontSize = 20.sp
+                                        )
+                                    }
                                     AppDesignVariant.TELEGRAM -> {
                                         Text(
                                             text = "Tech.Mate",
@@ -298,15 +303,6 @@ fun ChatsScreen(
                             }
                         }
 
-                        // Theme Switcher Button
-                        IconButton(onClick = { showThemeSwitcherDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Palette,
-                                contentDescription = "Сменить оформление",
-                                tint = tokens.topBarContentColor
-                            )
-                        }
-
                         IconButton(onClick = {
                             isSearching = !isSearching
                             if (!isSearching) searchQuery = ""
@@ -327,11 +323,11 @@ fun ChatsScreen(
 
                 // VARIANT SPECIFIC ARCHITECTURAL HEADER TABS
                 when (tokens.variant) {
+                    AppDesignVariant.PREMIUM_TECHMATE -> {
+                        // Истории перенесены в Ленту (VK стиль)
+                    }
                     AppDesignVariant.TELEGRAM -> {
-                        // Telegram Story Overlay with circular progress-indicated icons
-                        StoryOverlay(
-                            onOpenAlgorithm = { showRepairAlgorithmDialog = true }
-                        )
+                        // Истории отображаются только в Ленте
                     }
                     AppDesignVariant.WHATSAPP -> {
                         // WhatsApp Top Navigation Bar: [ЧАТЫ] [БАЗА ЗНАНИЙ] [НАСТРОЙКИ] [ЗВОНКИ]
@@ -460,6 +456,7 @@ fun ChatsScreen(
                     .scale(fabScale)
             ) {
                 val fabIcon = when (tokens.variant) {
+                    AppDesignVariant.PREMIUM_TECHMATE -> Icons.Default.Add
                     AppDesignVariant.TELEGRAM -> Icons.Default.Edit
                     AppDesignVariant.VK -> Icons.Default.Edit
                     AppDesignVariant.WHATSAPP -> Icons.Default.Chat
@@ -507,12 +504,6 @@ fun ChatsScreen(
             // STANDARD MESSENGER CHAT LIST
             else if (chats.isEmpty()) {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    if (tokens.variant == AppDesignVariant.VK || (tokens.variant == AppDesignVariant.WHATSAPP && whatsAppSelectedTab == 1)) {
-                        StoryOverlay(
-                            onOpenAlgorithm = { showRepairAlgorithmDialog = true }
-                        )
-                    }
-
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -721,14 +712,6 @@ fun ChatsScreen(
             )
         }
 
-        // Theme / Design Switcher Dialog
-        if (showThemeSwitcherDialog) {
-            ThemeSwitcherDialog(
-                themeManager = themeManager,
-                onDismiss = { showThemeSwitcherDialog = false }
-            )
-        }
-
         // Support Desk Dialog for Head Admin
         if (showSupportDeskDialog) {
             val supportChats = chats.filter { it.id.startsWith("support_chat_") }
@@ -823,6 +806,7 @@ fun MessengerChatItem(
     onLongClick: () -> Unit
 ) {
     when (variant) {
+        AppDesignVariant.PREMIUM_TECHMATE,
         AppDesignVariant.TELEGRAM -> TelegramChatItemRow(chat, isPinned, onClick, onLongClick)
         AppDesignVariant.VK -> VkChatItemRow(chat, isPinned, onClick, onLongClick)
         AppDesignVariant.WHATSAPP -> WhatsAppChatItemRow(chat, isPinned, onClick, onLongClick)
@@ -1205,119 +1189,8 @@ fun TelegramChatItemRow(
 }
 
 // ---------------------------------------------------------------------------------
-// VK SPECIFIC STRUCTURAL COMPONENTS: STORIES CAROUSEL & FILTER PILLS
+// VK SPECIFIC STRUCTURAL COMPONENTS: FILTER PILLS
 // ---------------------------------------------------------------------------------
-
-@Composable
-fun VkStoriesCarousel(
-    onOpenChat: (String) -> Unit,
-    onOpenAlgorithm: () -> Unit
-) {
-    val isDark = LocalIsDarkTheme.current
-    val stories = listOf(
-        Triple("➕", "История", {}),
-        Triple("🤖", "ИИ-Мастер", { onOpenAlgorithm() }),
-        Triple("⚡", "TestPoint", { onOpenAlgorithm() }),
-        Triple("🔬", "Микроскоп", {}),
-        Triple("📋", "Алгоритм", { onOpenAlgorithm() }),
-        Triple("💡", "Советы", {})
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(if (isDark) VkDarkSurface else Color.White)
-            .padding(vertical = 10.dp)
-    ) {
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            items(stories.size) { index ->
-                val (emoji, label, action) = stories[index]
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .clickable { action() }
-                        .padding(2.dp)
-                ) {
-                    Box(
-                        modifier = Modifier.size(58.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // VK Authentic Gradient Ring
-                        val ringBrush = if (index == 0) {
-                            Brush.linearGradient(listOf(Color(0xFF818C99), Color(0xFF818C99)))
-                        } else {
-                            Brush.sweepGradient(
-                                listOf(
-                                    Color(0xFFFF334B),
-                                    Color(0xFFE02476),
-                                    Color(0xFF7044FF),
-                                    Color(0xFF0077FF),
-                                    Color(0xFFFF334B)
-                                )
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                                .background(ringBrush)
-                                .padding(2.5.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                                    .background(if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = emoji, fontSize = 24.sp)
-                            }
-                        }
-
-                        // Add badge for story 0
-                        if (index == 0) {
-                            Box(
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .align(Alignment.BottomEnd)
-                                    .clip(CircleShape)
-                                    .background(VkBlue),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = label,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isDark) Color(0xFFE1E3E6) else Color(0xFF2C2D2E),
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-        HorizontalDivider(
-            thickness = 0.5.dp,
-            color = if (isDark) Color(0xFF2C2D2E) else Color(0xFFE1E3E6),
-            modifier = Modifier.padding(top = 10.dp)
-        )
-    }
-}
 
 @Composable
 fun VkFilterChipsBar(

@@ -127,6 +127,7 @@ fun CreateStoryDialog(
     )
 
     val primaryColor = when (designVariant) {
+        AppDesignVariant.PREMIUM_TECHMATE -> TechMateIndigo
         AppDesignVariant.TELEGRAM -> TelegramBlue
         AppDesignVariant.VK -> VkBlue
         AppDesignVariant.WHATSAPP -> WhatsAppLightGreenAccent

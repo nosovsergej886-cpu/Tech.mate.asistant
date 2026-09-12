@@ -46,12 +46,12 @@ class AuthService private constructor(private val context: Context) {
         )
         otpDao.insertOtp(otpEntity)
 
-        // If recipient is an email address, trigger Resend direct email delivery + Firebase fallback
+        // If recipient is an email address, trigger Corporate Hosting email delivery / Resend direct delivery + Firebase fallback
         if (cleanRecipient.contains("@")) {
             try {
-                EmailOtpService.sendOtpCode(cleanRecipient, randomCode)
+                EmailOtpService.sendOtpCode(cleanRecipient, randomCode, context)
             } catch (e: Exception) {
-                Log.w("AuthService", "Resend OTP email dispatch exception: ${e.message}")
+                Log.w("AuthService", "OTP email dispatch exception: ${e.message}")
             }
 
             try {

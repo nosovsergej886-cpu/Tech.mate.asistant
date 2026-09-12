@@ -74,7 +74,7 @@ fun AuthScreen(
     // Registration inputs
     var inputEmail by remember { mutableStateOf(deviceSecurity.getRegisteredEmail() ?: "") }
     var enteredOtp by remember { mutableStateOf("") }
-    var generatedOtp by remember { mutableStateOf("729401") }
+    var generatedOtp by remember { mutableStateOf("") }
 
     // Profile inputs
     var inputFullName by remember { mutableStateOf("") }
@@ -705,51 +705,45 @@ fun AuthScreen(
 
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = tokens.primaryAccent.copy(alpha = 0.12f),
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, tokens.primaryAccent),
+                            color = tokens.primaryAccent.copy(alpha = 0.08f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, tokens.primaryAccent.copy(alpha = 0.35f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(14.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(tokens.primaryAccent.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.LockOpen, contentDescription = null, tint = tokens.primaryAccent, modifier = Modifier.size(22.dp))
-                                    Text("Код подтверждения для входа:", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                                }
-
-                                val displayCode = generatedOtp.ifBlank { "729401" }
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, tokens.primaryAccent.copy(alpha = 0.5f))
-                                ) {
-                                    Text(
-                                        text = displayCode.chunked(3).joinToString(" "),
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.Black,
-                                        letterSpacing = 4.sp,
-                                        color = tokens.primaryAccent,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                    Icon(
+                                        Icons.Default.MarkEmailRead,
+                                        contentDescription = null,
+                                        tint = tokens.primaryAccent,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
-
-                                Button(
-                                    onClick = {
-                                        enteredOtp = displayCode
-                                        errorMessage = null
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = tokens.primaryAccent),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("Вставить код в поле ($displayCode)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (tokens.isOled) Color.Black else Color.White)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Код отправлен на почту",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "6-значный проверочный код выслан на:\n$inputEmail\nПроверьте входящие сообщения или папку «Спам». Код действителен 10 минут.",
+                                        fontSize = 11.5.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        lineHeight = 15.sp
+                                    )
                                 }
                             }
                         }
@@ -762,7 +756,8 @@ fun AuthScreen(
                                     errorMessage = null
                                 }
                             },
-                            label = { Text("6-значный код безопасности") },
+                            label = { Text("6-значный проверочный код") },
+                            placeholder = { Text("______") },
                             leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = tokens.primaryAccent) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth(),
@@ -773,7 +768,7 @@ fun AuthScreen(
                         Button(
                             onClick = {
                                 if (enteredOtp.length < 6) {
-                                    errorMessage = "Введите полный 6-значный код"
+                                    errorMessage = "Введите полный 6-значный код из письма"
                                     return@Button
                                 }
                                 scope.launch {
@@ -781,10 +776,7 @@ fun AuthScreen(
                                     errorMessage = null
                                     try {
                                         val isValid = authService.verifyOtp(inputEmail.trim(), enteredOtp) ||
-                                                enteredOtp == generatedOtp ||
-                                                enteredOtp == "729401" ||
-                                                enteredOtp == "000000" ||
-                                                enteredOtp == "482910"
+                                                (generatedOtp.isNotBlank() && enteredOtp == generatedOtp)
 
                                         if (!isValid) {
                                             errorMessage = "Неверный код. Проверьте почту."
@@ -822,7 +814,59 @@ fun AuthScreen(
                             ),
                             enabled = !isLoading
                         ) {
-                            Text("Подтвердить код", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            if (isLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Text("Подтвердить код", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    if (resendCooldown == 0) {
+                                        val clean = inputEmail.trim().lowercase()
+                                        scope.launch {
+                                            isLoading = true
+                                            errorMessage = null
+                                            try {
+                                                val code = authService.generateAndSendOtp(clean, "email_login")
+                                                generatedOtp = code
+                                                enteredOtp = ""
+                                                resendCooldown = 45
+                                                Toast.makeText(context, "Новый код отправлен на $clean", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                errorMessage = e.message ?: "Не удалось отправить повторно"
+                                            } finally {
+                                                isLoading = false
+                                            }
+                                        }
+                                    }
+                                },
+                                enabled = resendCooldown == 0 && !isLoading
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (resendCooldown == 0) tokens.primaryAccent else MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (resendCooldown > 0) "Повтор через $resendCooldown с" else "Отправить код повторно",
+                                    fontSize = 12.sp,
+                                    color = if (resendCooldown == 0) tokens.primaryAccent else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    currentStep = AuthStep.EMAIL_INPUT
+                                    errorMessage = null
+                                    enteredOtp = ""
+                                }
+                            ) {
+                                Text("Изменить email", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }
@@ -838,7 +882,7 @@ fun AuthScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "Заполнение карточки мастера",
+                            text = "Регистрация мастера",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -872,6 +916,21 @@ fun AuthScreen(
                             label = { Text("Название СЦ / Мастерской") },
                             placeholder = { Text("RemontPro, AppleFix...") },
                             leadingIcon = { Icon(Icons.Default.Store, contentDescription = null, tint = tokens.primaryAccent) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = tokens.actionButtonShape
+                        )
+
+                        // Код приглашения (выдается при покупке)
+                        OutlinedTextField(
+                            value = inputInviteCode,
+                            onValueChange = { inputInviteCode = it.trim().uppercase() },
+                            label = { Text("Код приглашения") },
+                            placeholder = { Text("Например: TECH-INVITE-2026") },
+                            leadingIcon = { Icon(Icons.Default.CardGiftcard, contentDescription = null, tint = tokens.primaryAccent) },
+                            supportingText = {
+                                Text("Код даётся при покупке доступа к платформе", fontSize = 11.sp)
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = tokens.actionButtonShape

@@ -349,6 +349,96 @@ interface StoryDao {
     suspend fun deleteStory(id: String)
 }
 
+@Dao
+interface PostDao {
+    @Query("SELECT * FROM posts ORDER BY createdAt DESC")
+    fun getAllPosts(): Flow<List<PostEntity>>
+
+    @Query("SELECT * FROM posts ORDER BY createdAt DESC")
+    suspend fun getAllPostsSync(): List<PostEntity>
+
+    @Query("SELECT * FROM posts WHERE authorEmail = :authorEmail ORDER BY createdAt DESC")
+    fun getPostsByAuthor(authorEmail: String): Flow<List<PostEntity>>
+
+    @Query("SELECT * FROM posts WHERE authorEmail = :authorEmail ORDER BY createdAt DESC")
+    suspend fun getPostsByAuthorSync(authorEmail: String): List<PostEntity>
+
+    @Query("SELECT * FROM posts WHERE id = :id LIMIT 1")
+    suspend fun getPostById(id: String): PostEntity?
+
+    @Query("SELECT * FROM posts WHERE content LIKE '%' || :query || '%' OR authorName LIKE '%' || :query || '%' OR taggedDevice LIKE '%' || :query || '%' ORDER BY createdAt DESC")
+    fun searchPosts(query: String): Flow<List<PostEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPost(post: PostEntity)
+
+    @Update
+    suspend fun updatePost(post: PostEntity)
+
+    @Query("DELETE FROM posts WHERE id = :id")
+    suspend fun deletePost(id: String)
+
+    @Query("UPDATE posts SET viewsCount = viewsCount + 1 WHERE id = :id")
+    suspend fun incrementViews(id: String)
+
+    @Query("UPDATE posts SET likesCount = :likesCount WHERE id = :id")
+    suspend fun updateLikesCount(id: String, likesCount: Int)
+
+    @Query("UPDATE posts SET commentsCount = commentsCount + 1 WHERE id = :id")
+    suspend fun incrementCommentsCount(id: String)
+
+    @Query("UPDATE posts SET commentsCount = :commentsCount WHERE id = :id")
+    suspend fun updateCommentsCount(id: String, commentsCount: Int)
+}
+
+@Dao
+interface PostCommentDao {
+    @Query("SELECT * FROM post_comments WHERE postId = :postId ORDER BY createdAt ASC")
+    fun getCommentsForPost(postId: String): Flow<List<PostCommentEntity>>
+
+    @Query("SELECT * FROM post_comments WHERE postId = :postId ORDER BY createdAt ASC")
+    suspend fun getCommentsForPostSync(postId: String): List<PostCommentEntity>
+
+    @Query("SELECT * FROM post_comments ORDER BY createdAt ASC")
+    suspend fun getAllCommentsSync(): List<PostCommentEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertComment(comment: PostCommentEntity)
+
+    @Query("DELETE FROM post_comments WHERE id = :id")
+    suspend fun deleteComment(id: String)
+}
+
+@Dao
+interface PostLikeDao {
+    @Query("SELECT COUNT(*) > 0 FROM post_likes WHERE postId = :postId AND userId = :userId")
+    suspend fun hasUserLiked(postId: String, userId: String): Boolean
+
+    @Query("SELECT postId FROM post_likes WHERE userId = :userId")
+    fun getLikedPostIds(userId: String): Flow<List<String>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLike(like: PostLikeEntity)
+
+    @Query("DELETE FROM post_likes WHERE postId = :postId AND userId = :userId")
+    suspend fun deleteLike(postId: String, userId: String)
+}
+
+@Dao
+interface SavedKnowledgeDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertItem(item: SavedKnowledgeItem)
+
+    @Query("SELECT * FROM saved_knowledge_items ORDER BY timestamp DESC")
+    fun getAllItemsFlow(): Flow<List<SavedKnowledgeItem>>
+
+    @Query("SELECT * FROM saved_knowledge_items ORDER BY timestamp DESC")
+    suspend fun getAllItemsSync(): List<SavedKnowledgeItem>
+
+    @Query("DELETE FROM saved_knowledge_items WHERE id = :id")
+    suspend fun deleteItem(id: String)
+}
+
 @Database(
     entities = [
         UserEntity::class,
@@ -365,9 +455,13 @@ interface StoryDao {
         SupportMessageEntity::class,
         SystemEventEntity::class,
         ActivityLogEntity::class,
-        StoryEntity::class
+        StoryEntity::class,
+        PostEntity::class,
+        PostCommentEntity::class,
+        PostLikeEntity::class,
+        SavedKnowledgeItem::class
     ],
-    version = 9,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -386,6 +480,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun systemEventDao(): SystemEventDao
     abstract fun activityLogDao(): ActivityLogDao
     abstract fun storyDao(): StoryDao
+    abstract fun postDao(): PostDao
+    abstract fun postCommentDao(): PostCommentDao
+    abstract fun postLikeDao(): PostLikeDao
+    abstract fun savedKnowledgeDao(): SavedKnowledgeDao
 }
 
 

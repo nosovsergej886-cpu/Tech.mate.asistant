@@ -274,5 +274,56 @@ data class TestPointCandidate(
     val status: String = "PENDING" // "PENDING", "APPROVED", "REJECTED"
 )
 
+@Entity(tableName = "posts")
+data class PostEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val authorId: String = "",
+    val authorName: String = "Мастер",
+    val authorEmail: String = "",
+    val authorServiceCenter: String = "СЦ «ТехноМастер»",
+    val authorServiceCenterId: String = "default_sc",
+    val authorAvatarUrl: String = "",
+    val content: String,
+    val mediaType: String = "NONE", // "NONE", "PHOTO", "VIDEO"
+    val mediaUrl: String = "",
+    val mediaTitle: String = "",
+    val likesCount: Int = 0,
+    val commentsCount: Int = 0,
+    val viewsCount: Int = 1,
+    val isPublic: Boolean = true,
+    val isAiAnalyzed: Boolean = false,
+    val taggedDevice: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "post_comments")
+data class PostCommentEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val postId: String,
+    val authorId: String = "",
+    val authorName: String = "Мастер",
+    val authorEmail: String = "",
+    val authorServiceCenter: String = "",
+    val content: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "post_likes", primaryKeys = ["postId", "userId"])
+data class PostLikeEntity(
+    val postId: String,
+    val userId: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "saved_knowledge_items")
+data class SavedKnowledgeItem(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val query: String,
+    val aiResponse: String,
+    val timestamp: Long = System.currentTimeMillis(),
+    val tags: String = ""
+)
+
+
 
 

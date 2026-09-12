@@ -73,6 +73,7 @@ fun StoriesBar(
     }
 
     val barBackground = when (designVariant) {
+        AppDesignVariant.PREMIUM_TECHMATE -> if (isDark) TechMateDarkSurface else Color.White
         AppDesignVariant.TELEGRAM -> if (isDark) TelegramDarkSurface else Color.White
         AppDesignVariant.VK -> if (isDark) VkDarkSurface else Color.White
         AppDesignVariant.WHATSAPP -> if (isDark) WhatsAppDarkSurface else Color.White
@@ -95,6 +96,7 @@ fun StoriesBar(
                 val isSelected = selectedFilterIndex == index
                 val chipColor = when {
                     isSelected -> when (designVariant) {
+                        AppDesignVariant.PREMIUM_TECHMATE -> TechMateIndigo
                         AppDesignVariant.TELEGRAM -> TelegramBlue
                         AppDesignVariant.VK -> VkBlue
                         AppDesignVariant.WHATSAPP -> if (isDark) WhatsAppLightGreenAccent else WhatsAppTeal
@@ -157,6 +159,7 @@ fun StoriesBar(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "Добавить историю",
                                 tint = when (designVariant) {
+                                    AppDesignVariant.PREMIUM_TECHMATE -> TechMateIndigo
                                     AppDesignVariant.TELEGRAM -> TelegramBlue
                                     AppDesignVariant.VK -> VkBlue
                                     AppDesignVariant.WHATSAPP -> if (isDark) WhatsAppLightGreenAccent else WhatsAppTeal
@@ -638,7 +641,10 @@ fun StoryViewerDialog(
 
                 // Bottom Action Buttons
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedButton(

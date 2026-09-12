@@ -13,6 +13,11 @@ enum class AppThemeMode {
 }
 
 enum class AppDesignVariant(val titleRu: String, val descriptionRu: String, val iconEmoji: String) {
+    PREMIUM_TECHMATE(
+        titleRu = "Tech.mate Премиум (Glassmorphism)",
+        descriptionRu = "Флагманский стиль: глубокий обсидиан #0B0F19, неоновый индиго #6366F1, стеклянные панели Glassmorphism с тонкими обводками, мягкими тенями и тактильной отдачей",
+        iconEmoji = "💎"
+    ),
     TELEGRAM(
         titleRu = "Облачный стиль (Aero)",
         descriptionRu = "Минималистичный интерфейс: лазурно-синие акценты, плавающий круглый FAB, мягкие пузыри сообщений с хвостиками",
@@ -88,22 +93,10 @@ enum class EventTheme(val titleRu: String, val descriptionRu: String, val iconEm
 class ThemeManager private constructor(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("techmate_theme_prefs", Context.MODE_PRIVATE)
     
-    private val _themeMode = MutableStateFlow(
-        try {
-            AppThemeMode.valueOf(prefs.getString(KEY_THEME_MODE, AppThemeMode.DARK.name) ?: AppThemeMode.DARK.name)
-        } catch (e: Exception) {
-            AppThemeMode.DARK
-        }
-    )
+    private val _themeMode = MutableStateFlow(AppThemeMode.DARK)
     val themeMode: StateFlow<AppThemeMode> = _themeMode.asStateFlow()
 
-    private val _designVariant = MutableStateFlow(
-        try {
-            AppDesignVariant.VK
-        } catch (e: Exception) {
-            AppDesignVariant.VK
-        }
-    )
+    private val _designVariant = MutableStateFlow(AppDesignVariant.PREMIUM_TECHMATE)
     val designVariant: StateFlow<AppDesignVariant> = _designVariant.asStateFlow()
 
     private val _splashAnimation = MutableStateFlow(
@@ -131,17 +124,17 @@ class ThemeManager private constructor(context: Context) {
     }
 
     fun setThemeMode(mode: AppThemeMode) {
-        _themeMode.value = mode
-        prefs.edit().putString(KEY_THEME_MODE, mode.name).apply()
+        _themeMode.value = AppThemeMode.DARK
+        prefs.edit().putString(KEY_THEME_MODE, AppThemeMode.DARK.name).apply()
     }
 
     fun toggleDarkTheme(isDark: Boolean) {
-        setThemeMode(if (isDark) AppThemeMode.DARK else AppThemeMode.LIGHT)
+        setThemeMode(AppThemeMode.DARK)
     }
 
     fun setDesignVariant(variant: AppDesignVariant) {
-        _designVariant.value = variant
-        prefs.edit().putString(KEY_DESIGN_VARIANT, variant.name).apply()
+        _designVariant.value = AppDesignVariant.PREMIUM_TECHMATE
+        prefs.edit().putString(KEY_DESIGN_VARIANT, AppDesignVariant.PREMIUM_TECHMATE.name).apply()
     }
 
     fun setSplashAnimation(anim: SplashAnimationType, userEmail: String?): Boolean {

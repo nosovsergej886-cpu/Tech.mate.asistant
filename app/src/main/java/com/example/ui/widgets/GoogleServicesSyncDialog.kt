@@ -168,21 +168,74 @@ fun GoogleServicesSyncDialog(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         val lastSyncStr = if (syncReport.lastSyncTimestamp > 0) {
-                            SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(syncReport.lastSyncTimestamp))
-                        } else "Не выполнялась"
+                            SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault()).format(Date(syncReport.lastSyncTimestamp))
+                        } else "Еще не выполнялась"
+
+                        val statusColor = when (syncReport.state) {
+                            SyncState.SYNCING -> Color(0xFFFBBC05)
+                            SyncState.SUCCESS -> Color(0xFF34A853)
+                            SyncState.ERROR -> Color(0xFFEA4335)
+                            else -> Color(0xFF4285F4)
+                        }
+
+                        val statusText = when (syncReport.state) {
+                            SyncState.SYNCING -> "Выполняется синхронизация с облаком..."
+                            SyncState.SUCCESS -> "Синхронизировано"
+                            SyncState.ERROR -> "Автономный режим / Ошибка сети"
+                            else -> "Готово к запуску"
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .clip(CircleShape)
+                                    .background(statusColor)
+                            )
+                            Text(
+                                text = "Статус: $statusText",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
 
                         Text(
-                            text = "Последняя синхронизация: $lastSyncStr",
+                            text = "Время обновления: $lastSyncStr",
                             fontSize = 11.5.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
-                        if (syncReport.message.isNotBlank()) {
-                            Text(
-                                text = syncReport.message,
-                                fontSize = 11.5.sp,
-                                color = if (syncReport.state == SyncState.ERROR) Color(0xFFE53935) else Color(0xFF43A047),
-                                fontWeight = FontWeight.SemiBold
+
+                        if (isSyncing || syncReport.state == SyncState.SYNCING) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LinearProgressIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = Color(0xFF4285F4)
                             )
+                        }
+
+                        if (syncReport.message.isNotBlank() && syncReport.state == SyncState.SUCCESS) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF34A853).copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, Color(0xFF34A853).copy(alpha = 0.25f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "✓ ${syncReport.message}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF2E7D32),
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -195,23 +248,23 @@ fun GoogleServicesSyncDialog(
                                     kotlinx.coroutines.withContext(Dispatchers.Main) {
                                         isSyncing = false
                                         syncMessage = result.message
-                                        Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },
                             enabled = !isSyncing,
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
-                            modifier = Modifier.fillMaxWidth().height(42.dp)
+                            modifier = Modifier.fillMaxWidth().height(44.dp)
                         ) {
                             if (isSyncing) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Синхронизация...", color = Color.White, fontSize = 13.sp)
+                                Text("Синхронизация данных...", color = Color.White, fontSize = 13.sp)
                             } else {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Синхронизировать сейчас", fontSize = 13.sp)
+                                Text("Синхронизировать сейчас", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     }

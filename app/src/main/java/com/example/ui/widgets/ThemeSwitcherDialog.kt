@@ -151,9 +151,116 @@ fun ThemeSwitcherDialog(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Section 2: Messenger Style & Structure (2-column tiles)
+                // Section 2: Messenger Style & Structure
                 Text(
-                    text = "СТИЛЬ МЕССЕНДЖЕРА И СТРУКТУРА",
+                    text = "ФЛАГМАНСКИЙ ДИЗАЙН TECH.MATE",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 0.8.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Flagship Premium Tile
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (isDark) TechMateDarkSurfaceVariant.copy(alpha = 0.8f) else Color(0xFFEEF2FF),
+                    border = androidx.compose.foundation.BorderStroke(
+                        if (currentVariant == AppDesignVariant.PREMIUM_TECHMATE) 2.dp else 1.dp,
+                        if (currentVariant == AppDesignVariant.PREMIUM_TECHMATE) TechMateIndigo else Color.White.copy(alpha = 0.15f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .clickable { themeManager.setDesignVariant(AppDesignVariant.PREMIUM_TECHMATE) }
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("💎", fontSize = 22.sp)
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(
+                                            text = "Tech.mate Премиум",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = TechMateIndigo.copy(alpha = 0.2f)
+                                        ) {
+                                            Text(
+                                                text = "ФЛАГМАН",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = TechMateIndigo,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "Glassmorphism, неоновый индиго, мягкие тени и тактильный виброотклик",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            if (currentVariant == AppDesignVariant.PREMIUM_TECHMATE) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(TechMateIndigo),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf("✨ Glassmorphism", "📳 HapticFeedback", "🎙️ Wave Rec", "📚 Offline Room").forEach { tag ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.05f))
+                                ) {
+                                    Text(
+                                        text = tag,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "ДРУГИЕ СТИЛИ МЕССЕНДЖЕРА",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -260,6 +367,7 @@ fun ThemeSwitcherDialog(
                                 Spacer(modifier = Modifier.height(6.dp))
 
                                 val summaryText = when (currentVariant) {
+                                    AppDesignVariant.PREMIUM_TECHMATE -> "Tech.mate Премиум: флагманский Glassmorphism, неоновый индиго, мягкие тени и тактильная отдача."
                                     AppDesignVariant.TELEGRAM -> "Облачный (Aero): круглый FAB с карандашом, мягкие хвостики баблов и единая капсула ввода."
                                     AppDesignVariant.VK -> "Портальный (Connect): аккуратная карточная лента, статус активности, сервисные бейджи и кнопка '+'."
                                     AppDesignVariant.WHATSAPP -> "Изумрудный (Emerald): глубокая изумрудная шапка, обои диалога и отдельная круглая кнопка отправки."

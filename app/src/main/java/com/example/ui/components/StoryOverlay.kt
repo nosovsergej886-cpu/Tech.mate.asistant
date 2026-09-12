@@ -88,6 +88,7 @@ fun StoryOverlay(
     var showCreateStoryDialog by remember { mutableStateOf(false) }
 
     val containerBg = when (designVariant) {
+        AppDesignVariant.PREMIUM_TECHMATE -> if (isDark) TechMateDarkSurface else Color.White
         AppDesignVariant.TELEGRAM -> if (isDark) TelegramDarkSurface else Color.White
         AppDesignVariant.VK -> if (isDark) VkDarkSurface else Color.White
         AppDesignVariant.WHATSAPP -> if (isDark) WhatsAppDarkSurface else Color.White
@@ -114,6 +115,7 @@ fun StoryOverlay(
                         shape = RoundedCornerShape(14.dp),
                         color = if (isSelected) {
                             when (designVariant) {
+                                AppDesignVariant.PREMIUM_TECHMATE -> TechMateIndigo
                                 AppDesignVariant.TELEGRAM -> TelegramBlue
                                 AppDesignVariant.VK -> VkBlue
                                 AppDesignVariant.WHATSAPP -> WhatsAppLightGreenAccent
@@ -187,6 +189,7 @@ fun StoryOverlay(
                                     .clip(CircleShape)
                                     .background(
                                         when (designVariant) {
+                                            AppDesignVariant.PREMIUM_TECHMATE -> TechMateIndigo
                                             AppDesignVariant.TELEGRAM -> TelegramBlue
                                             AppDesignVariant.VK -> VkBlue
                                             AppDesignVariant.WHATSAPP -> WhatsAppLightGreenAccent

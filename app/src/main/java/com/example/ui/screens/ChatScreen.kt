@@ -63,6 +63,7 @@ import com.example.services.AiService
 import com.example.services.AuthService
 import com.example.services.DatabaseService
 import com.example.services.LanguageService
+import com.example.ui.components.SmartActionChips
 import com.example.services.OpenAiVoiceService
 import com.example.services.VoiceEngineType
 import com.example.services.OpenAiVoiceOption
@@ -125,6 +126,16 @@ fun ChatScreen(
     var speakingMessageId by remember { mutableStateOf<String?>(null) }
     var isVoiceAnswerEnabled by remember { mutableStateOf(true) } // AI voice response toggle
     var showOpenAiVoiceDialog by remember { mutableStateOf(false) }
+    var showTopBarMenu by remember { mutableStateOf(false) }
+
+    val isHumanChat = remember(chatId, chatTitle) {
+        chatId.startsWith("sc_team_chat_") ||
+        chatId.startsWith("support_chat_") ||
+        chatTitle.contains("Мастера", ignoreCase = true) ||
+        chatTitle.contains("Чат СЦ", ignoreCase = true) ||
+        chatTitle == "Поддержка" ||
+        chatTitle.contains("Команда", ignoreCase = true)
+    }
 
     fun stopSpeech() {
         openAiVoiceService.stop()
@@ -414,7 +425,7 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -425,7 +436,8 @@ fun ChatScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = tokens.topBarContentColor,
                                 fontSize = 16.sp,
-                                maxLines = 1
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                             if (tokens.variant == AppDesignVariant.VK) {
                                 Icon(
@@ -437,29 +449,29 @@ fun ChatScreen(
                             }
                         }
 
-                        val statusText = when (tokens.variant) {
-                            AppDesignVariant.TELEGRAM -> "бот • в сети"
-                            AppDesignVariant.VK -> "отвечает мгновенно"
-                            AppDesignVariant.WHATSAPP -> "в сети"
+                        val statusText = when {
+                            isHumanChat -> "чат мастеров СЦ • в сети"
+                            tokens.variant == AppDesignVariant.TELEGRAM -> "бот • в сети"
+                            tokens.variant == AppDesignVariant.VK -> "отвечает мгновенно"
+                            else -> "в сети"
                         }
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            if (tokens.variant != AppDesignVariant.VK) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(if (tokens.variant == AppDesignVariant.WHATSAPP) Color(0xFF25D366) else Color(0xFF4CAF50))
-                                )
-                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF4CAF50))
+                            )
                             Text(
                                 text = statusText,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (tokens.variant == AppDesignVariant.WHATSAPP) Color(0xFF25D366) else tokens.topBarContentColor.copy(alpha = 0.85f),
-                                fontSize = 11.sp
+                                color = tokens.topBarContentColor.copy(alpha = 0.85f),
+                                fontSize = 11.sp,
+                                maxLines = 1
                             )
                         }
                     }
@@ -474,80 +486,81 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    // Extra WhatsApp action buttons: Video Call & Audio Call
-                    if (tokens.variant == AppDesignVariant.WHATSAPP) {
-                        IconButton(onClick = { Toast.makeText(context, "ИИ голосовой вызов в разработке", Toast.LENGTH_SHORT).show() }) {
+                    // Quick audio toggle if AI chat
+                    if (!isHumanChat) {
+                        IconButton(onClick = {
+                            isVoiceAnswerEnabled = !isVoiceAnswerEnabled
+                            val statusMsg = if (isVoiceAnswerEnabled) "🔊 Озвучка ИИ включена" else "🔇 Озвучка отключена"
+                            Toast.makeText(context, statusMsg, Toast.LENGTH_SHORT).show()
+                            if (!isVoiceAnswerEnabled) stopSpeech()
+                        }) {
                             Icon(
-                                imageVector = Icons.Default.Videocam,
-                                contentDescription = "Video Call",
+                                imageVector = if (isVoiceAnswerEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                contentDescription = "Voice Response",
+                                tint = if (isVoiceAnswerEnabled) TechGoldTestPoint else Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // 3-dots compact overflow menu for all additional actions
+                    Box {
+                        IconButton(onClick = { showTopBarMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Меню",
                                 tint = tokens.topBarContentColor
                             )
                         }
-                        IconButton(onClick = { Toast.makeText(context, "ИИ звонок в разработке", Toast.LENGTH_SHORT).show() }) {
-                            Icon(
-                                imageVector = Icons.Default.Call,
-                                contentDescription = "Call",
-                                tint = tokens.topBarContentColor
+
+                        DropdownMenu(
+                            expanded = showTopBarMenu,
+                            onDismissRequest = { showTopBarMenu = false }
+                        ) {
+                            if (!isHumanChat) {
+                                DropdownMenuItem(
+                                    text = { Text("📋 12 шагов алгоритма") },
+                                    leadingIcon = { Icon(Icons.Default.Checklist, contentDescription = null, tint = TechGoldTestPoint) },
+                                    onClick = {
+                                        showTopBarMenu = false
+                                        showRepairAlgorithmDialog = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("🎙️ Настройки голоса ИИ") },
+                                    leadingIcon = { Icon(Icons.Default.RecordVoiceOver, contentDescription = null, tint = TelegramPrimary) },
+                                    onClick = {
+                                        showTopBarMenu = false
+                                        showOpenAiVoiceDialog = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("✅ Отметить как «Решено»") },
+                                    leadingIcon = { Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF22C55E)) },
+                                    onClick = {
+                                        showTopBarMenu = false
+                                        handleMarkSolved()
+                                    }
+                                )
+                                HorizontalDivider()
+                            }
+                            DropdownMenuItem(
+                                text = { Text("🧮 Калькулятор номиналов") },
+                                leadingIcon = { Icon(Icons.Default.Calculate, contentDescription = null) },
+                                onClick = {
+                                    showTopBarMenu = false
+                                    showCalculatorDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("📄 Акт / Отчёт ремонта") },
+                                leadingIcon = { Icon(Icons.Default.Receipt, contentDescription = null) },
+                                onClick = {
+                                    showTopBarMenu = false
+                                    showReportDialog = true
+                                }
                             )
                         }
-                    }
-
-                    // 12 Steps Repair Algorithm Checklist
-                    IconButton(onClick = { showRepairAlgorithmDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Checklist,
-                            contentDescription = "Repair Algorithm",
-                            tint = TechGoldTestPoint
-                        )
-                    }
-
-                    // OpenAI Voice Selector Button (🎙️)
-                    IconButton(onClick = { showOpenAiVoiceDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.RecordVoiceOver,
-                            contentDescription = "OpenAI Voice Settings",
-                            tint = TelegramPrimary
-                        )
-                    }
-
-                    // AI Voice Answer Toggle Button (🔊)
-                    IconButton(onClick = {
-                        isVoiceAnswerEnabled = !isVoiceAnswerEnabled
-                        val statusText = if (isVoiceAnswerEnabled) "🔊 Озвучка OpenAI ИИ включена" else "🔇 Озвучка ИИ отключена"
-                        Toast.makeText(context, statusText, Toast.LENGTH_SHORT).show()
-                        if (!isVoiceAnswerEnabled) stopSpeech()
-                    }) {
-                        Icon(
-                            imageVector = if (isVoiceAnswerEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                            contentDescription = "Voice Response Toggle",
-                            tint = if (isVoiceAnswerEnabled) TechGoldTestPoint else Color.White.copy(alpha = 0.6f)
-                        )
-                    }
-
-                    IconButton(onClick = { showCalculatorDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Calculate,
-                            contentDescription = "Calculator",
-                            tint = Color.White
-                        )
-                    }
-                    IconButton(onClick = { showReportDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Receipt,
-                            contentDescription = "Report",
-                            tint = Color.White
-                        )
-                    }
-                    TextButton(
-                        onClick = handleMarkSolved,
-                        contentPadding = PaddingValues(horizontal = 6.dp)
-                    ) {
-                        Text(
-                            text = "Решено",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -883,97 +896,86 @@ fun ChatScreen(
                 }
             }
 
-            // Master Quick Action Chips Bar
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                item {
-                    AssistChip(
-                        onClick = { showRepairAlgorithmDialog = true },
-                        label = { Text("📋 12 шагов алгоритма", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                        leadingIcon = { Icon(Icons.Default.Engineering, contentDescription = null, tint = if (isDark) Color(0xFFFDE047) else TechGoldTestPoint, modifier = Modifier.size(15.dp)) },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (isDark) TechGoldTestPoint.copy(alpha = 0.28f) else TechGoldTestPoint.copy(alpha = 0.15f),
-                            labelColor = if (isDark) Color(0xFFFDE047) else Color(0xFFB45309)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) TechGoldTestPoint.copy(alpha = 0.65f) else TechGoldTestPoint.copy(alpha = 0.35f))
-                    )
+            // Master Quick Action Chips Bar & Smart suggestions (shown only in AI assistant chats, hidden in master team chats)
+            if (!isHumanChat) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    item {
+                        AssistChip(
+                            onClick = { showRepairAlgorithmDialog = true },
+                            label = { Text("📋 12 шагов алгоритма", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            leadingIcon = { Icon(Icons.Default.Engineering, contentDescription = null, tint = if (isDark) Color(0xFFFDE047) else TechGoldTestPoint, modifier = Modifier.size(15.dp)) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = if (isDark) TechGoldTestPoint.copy(alpha = 0.28f) else TechGoldTestPoint.copy(alpha = 0.15f),
+                                labelColor = if (isDark) Color(0xFFFDE047) else Color(0xFFB45309)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) TechGoldTestPoint.copy(alpha = 0.65f) else TechGoldTestPoint.copy(alpha = 0.35f))
+                        )
+                    }
+                    item {
+                        AssistChip(
+                            onClick = {
+                                inputText = "⚡ Замеры линий питания: VBUS=...V, VBAT=...V, Диодная прозвонка линий D+/D-: ... mV. Подскажи норму."
+                            },
+                            label = { Text("⚡ Замеры / КЗ", fontSize = 11.sp, fontWeight = FontWeight.Medium) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = if (isDark) tokens.primaryAccent.copy(alpha = 0.28f) else tokens.primaryAccent.copy(alpha = 0.12f),
+                                labelColor = if (isDark) Color.White else tokens.primaryAccent
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) tokens.primaryAccent.copy(alpha = 0.65f) else tokens.primaryAccent.copy(alpha = 0.35f))
+                        )
+                    }
+                    item {
+                        AssistChip(
+                            onClick = {
+                                val currentQuery = inputText.ifBlank { chatTitle.ifBlank { "Xiaomi Redmi Note 12" } }
+                                inputText = "Покажи фото и схему TestPoint для $currentQuery (EDL / BROM режим)"
+                            },
+                            label = { Text("📍 TestPoint", fontSize = 11.sp, fontWeight = FontWeight.Medium) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = if (isDark) tokens.primaryAccent.copy(alpha = 0.28f) else tokens.primaryAccent.copy(alpha = 0.12f),
+                                labelColor = if (isDark) Color.White else tokens.primaryAccent
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) tokens.primaryAccent.copy(alpha = 0.65f) else tokens.primaryAccent.copy(alpha = 0.35f))
+                        )
+                    }
+                    item {
+                        AssistChip(
+                            onClick = {
+                                launchCameraSafe(isMicroscope = true)
+                            },
+                            label = { Text("🔬 Микроскоп", fontSize = 11.sp, fontWeight = FontWeight.Medium) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = if (isDark) tokens.primaryAccent.copy(alpha = 0.28f) else tokens.primaryAccent.copy(alpha = 0.12f),
+                                labelColor = if (isDark) Color.White else tokens.primaryAccent
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) tokens.primaryAccent.copy(alpha = 0.65f) else tokens.primaryAccent.copy(alpha = 0.35f))
+                        )
+                    }
+                    item {
+                        AssistChip(
+                            onClick = {
+                                Toast.makeText(context, "💡 Главное правило: Сначала понять причину — потом паять!", Toast.LENGTH_LONG).show()
+                            },
+                            label = { Text("💡 Правило мастера", fontSize = 11.sp, fontWeight = FontWeight.Medium) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = if (isDark) Color(0x3322C55E) else Color(0x2222C55E),
+                                labelColor = if (isDark) Color(0xFF4ADE80) else Color(0xFF16A34A)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) Color(0x8822C55E) else Color(0x4422C55E))
+                        )
+                    }
                 }
-                item {
-                    AssistChip(
-                        onClick = {
-                            inputText = "⚡ Замеры линий питания: VBUS=...V, VBAT=...V, Диодная прозвонка линий D+/D-: ... mV. Подскажи норму."
-                        },
-                        label = { Text("⚡ Замеры / КЗ", fontSize = 11.sp, fontWeight = FontWeight.Medium) },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (isDark) tokens.primaryAccent.copy(alpha = 0.28f) else tokens.primaryAccent.copy(alpha = 0.12f),
-                            labelColor = if (isDark) Color.White else tokens.primaryAccent
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) tokens.primaryAccent.copy(alpha = 0.65f) else tokens.primaryAccent.copy(alpha = 0.35f))
-                    )
-                }
-                item {
-                    AssistChip(
-                        onClick = {
-                            val currentQuery = inputText.ifBlank { chatTitle.ifBlank { "Xiaomi Redmi Note 12" } }
-                            inputText = "Покажи фото и схему TestPoint для $currentQuery (EDL / BROM режим)"
-                        },
-                        label = { Text("📍 TestPoint", fontSize = 11.sp, fontWeight = FontWeight.Medium) },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (isDark) tokens.primaryAccent.copy(alpha = 0.28f) else tokens.primaryAccent.copy(alpha = 0.12f),
-                            labelColor = if (isDark) Color.White else tokens.primaryAccent
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) tokens.primaryAccent.copy(alpha = 0.65f) else tokens.primaryAccent.copy(alpha = 0.35f))
-                    )
-                }
-                item {
-                    AssistChip(
-                        onClick = {
-                            launchCameraSafe(isMicroscope = true)
-                        },
-                        label = { Text("🔬 Микроскоп", fontSize = 11.sp, fontWeight = FontWeight.Medium) },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (isDark) tokens.primaryAccent.copy(alpha = 0.28f) else tokens.primaryAccent.copy(alpha = 0.12f),
-                            labelColor = if (isDark) Color.White else tokens.primaryAccent
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) tokens.primaryAccent.copy(alpha = 0.65f) else tokens.primaryAccent.copy(alpha = 0.35f))
-                    )
-                }
-                item {
-                    AssistChip(
-                        onClick = {
-                            Toast.makeText(context, "💡 Главное правило: Сначала понять причину — потом паять!", Toast.LENGTH_LONG).show()
-                        },
-                        label = { Text("💡 Правило мастера", fontSize = 11.sp, fontWeight = FontWeight.Medium) },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (isDark) Color(0x3322C55E) else Color(0x2222C55E),
-                            labelColor = if (isDark) Color(0xFF4ADE80) else Color(0xFF16A34A)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) Color(0x8822C55E) else Color(0x4422C55E))
-                    )
-                }
-            }
 
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                items(smartSuggestions) { reply ->
-                    AssistChip(
-                        onClick = {
-                            inputText = if (inputText.isBlank()) reply else "$inputText $reply"
-                        },
-                        label = { Text(reply, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (isDark) Color(0xFF243247) else Color(0xFFF1F5F9),
-                            labelColor = if (isDark) Color.White else Color(0xFF0F172A)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isDark) TechGoldTestPoint.copy(alpha = 0.65f) else Color(0xFFCBD5E1))
-                    )
-                }
+                SmartActionChips(
+                    isVisible = !isHumanChat,
+                    onChipClick = { chip ->
+                        handleSendMessage(chip.prompt)
+                    }
+                )
             }
 
             // Image Preview Thumbnail
@@ -1412,6 +1414,7 @@ fun ChatScreen(
                             }
                         }
 
+                        AppDesignVariant.PREMIUM_TECHMATE,
                         AppDesignVariant.TELEGRAM -> {
                             // Telegram Classic Single Pill + Blue Circular FAB
                             Row(

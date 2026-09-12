@@ -140,6 +140,14 @@ fun ChatBubble(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 when (tokens.variant) {
+                                    AppDesignVariant.PREMIUM_TECHMATE -> {
+                                        Text(
+                                            text = "💎 Tech.Mate AI",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.5.sp,
+                                            color = TechMateIndigo
+                                        )
+                                    }
                                     AppDesignVariant.TELEGRAM -> {
                                         Text(
                                             text = "🤖 Мастер ИИ",

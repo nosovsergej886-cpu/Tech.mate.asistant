@@ -18,12 +18,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.example.services.AppDesignVariant
 import com.example.model.ChatEntity
 import com.example.services.DatabaseService
 import com.example.services.ThemeManager
 import com.example.ui.theme.*
 import com.example.ui.widgets.RepairAlgorithmDialog
-import com.example.ui.widgets.ThemeSwitcherDialog
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,57 +46,102 @@ fun MainScreen(
     var selectedTab by rememberSaveable { mutableIntStateOf(initialTab) }
     val isDark = LocalIsDarkTheme.current
 
-    var showThemeSwitcherDialog by remember { mutableStateOf(false) }
     var showRepairAlgorithmDialog by remember { mutableStateOf(false) }
+
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val tokens = LocalDesignTokens.current
+    val isPremium = tokens.variant == AppDesignVariant.PREMIUM_TECHMATE
+
+    // Intercept hardware/gesture back button so user does not exit app accidentally
+    BackHandler(enabled = selectedTab != 0) {
+        selectedTab = 0
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            // VK: Thin, sleek bottom bar
+            // Adaptive Bottom Bar matching the active design variant (Flagship Tech.mate Glassmorphism by default)
+            val barBg = when (tokens.variant) {
+                AppDesignVariant.PREMIUM_TECHMATE -> if (isDark) Color(0xFF0B0F19).copy(alpha = 0.96f) else Color(0xFFFFFFFF)
+                AppDesignVariant.TELEGRAM -> if (isDark) TelegramDarkSurface else Color.White
+                AppDesignVariant.VK -> if (isDark) VkDarkSurface else Color.White
+                AppDesignVariant.WHATSAPP -> if (isDark) WhatsAppDarkSurface else Color.White
+            }
+            val dividerColor = when (tokens.variant) {
+                AppDesignVariant.PREMIUM_TECHMATE -> if (isDark) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.08f)
+                AppDesignVariant.TELEGRAM -> if (isDark) Color(0xFF232E3C) else Color(0xFFE2E8F0)
+                AppDesignVariant.VK -> if (isDark) Color(0xFF2C2D2E) else Color(0xFFE1E3E6)
+                AppDesignVariant.WHATSAPP -> if (isDark) Color(0xFF1F2C34) else Color(0xFFE2E8F0)
+            }
+            val activeAccent = when (tokens.variant) {
+                AppDesignVariant.PREMIUM_TECHMATE -> TechMateIndigo
+                AppDesignVariant.TELEGRAM -> TelegramBlue
+                AppDesignVariant.VK -> VkBlue
+                AppDesignVariant.WHATSAPP -> WhatsAppLightGreenAccent
+            }
+            val inactiveAccent = when (tokens.variant) {
+                AppDesignVariant.PREMIUM_TECHMATE -> if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                AppDesignVariant.TELEGRAM -> TelegramTextSecondary
+                AppDesignVariant.VK -> if (isDark) VkTextSecondaryDark else VkTextSecondaryLight
+                AppDesignVariant.WHATSAPP -> if (isDark) WhatsAppTextSecondaryDark else WhatsAppTextSecondaryLight
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // REMOVED navigationBarsPadding() here to fix the black bar at the bottom!
-                    // Scaffold will automatically inset it if we don't consume it.
-                    .background(if (isDark) VkDarkSurface else Color.White)
+                    .background(barBg)
                     .navigationBarsPadding()
             ) {
                 HorizontalDivider(
-                    thickness = 0.5.dp,
-                    color = if (isDark) Color(0xFF2C2D2E) else Color(0xFFE1E3E6)
+                    thickness = if (isPremium) 1.dp else 0.5.dp,
+                    color = dividerColor
                 )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .height(56.dp)
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     listOf(
                         Triple(0, "Лента", if (selectedTab == 0) Icons.Default.DynamicFeed else Icons.Outlined.DynamicFeed),
                         Triple(1, "Чаты", if (selectedTab == 1) Icons.Default.Forum else Icons.Outlined.Forum),
-                        Triple(2, "Сервисы", if (selectedTab == 2) Icons.Default.Widgets else Icons.Outlined.Widgets),
+                        Triple(2, "Знания", if (selectedTab == 2) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder),
                         Triple(3, "Профиль", if (selectedTab == 3) Icons.Default.AccountCircle else Icons.Outlined.AccountCircle)
                     ).forEach { (tabIdx, label, icon) ->
                         val isSelected = selectedTab == tabIdx
-                        val activeColor = VkBlue
-                        val inactiveColor = if (isDark) VkTextSecondaryDark else VkTextSecondaryLight
+                        val activeColor = activeAccent
+                        val inactiveColor = inactiveAccent
+
+                        val pillBg = if (isSelected && isPremium) {
+                            TechMateIndigo.copy(alpha = if (isDark) 0.16f else 0.10f)
+                        } else Color.Transparent
+
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .clickable { selectedTab = tabIdx },
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(pillBg)
+                                .clickable {
+                                    if (selectedTab != tabIdx) {
+                                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                        selectedTab = tabIdx
+                                    }
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.padding(vertical = 2.dp)
                             ) {
                                 if (tabIdx == 1) { // Chat Tab Badge
                                     BadgedBox(
                                         badge = {
                                             Badge(
-                                                containerColor = VkBlue,
+                                                containerColor = activeAccent,
                                                 contentColor = Color.White
                                             ) {
                                                 Text("1", fontSize = 9.sp, fontWeight = FontWeight.Bold)
@@ -119,7 +166,7 @@ fun MainScreen(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = label,
-                                    fontSize = 11.sp,
+                                    fontSize = 10.5.sp,
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                     color = if (isSelected) activeColor else inactiveColor
                                 )

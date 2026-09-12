@@ -20,20 +20,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.example.services.LanguageService.init(this)
+        com.example.services.CustomHostSyncService.getInstance(this)
         enableEdgeToEdge()
 
         setContent {
             val themeManager = remember { com.example.services.ThemeManager.getInstance(this@MainActivity) }
-            val themeMode by themeManager.themeMode.collectAsState()
             val designVariant by themeManager.designVariant.collectAsState()
-            val systemInDark = isSystemInDarkTheme()
-            val isDarkTheme = when (themeMode) {
-                com.example.services.AppThemeMode.DARK -> true
-                com.example.services.AppThemeMode.LIGHT -> false
-                com.example.services.AppThemeMode.SYSTEM -> systemInDark
-            }
+            val isDarkTheme = true
 
-            TechMateTheme(darkTheme = isDarkTheme, designVariant = designVariant) {
+            TechMateTheme(darkTheme = true, designVariant = designVariant) {
                 val navController = rememberNavController()
                 val authService = remember { AuthService.getInstance(this@MainActivity) }
                 val currentUser by authService.currentUser.collectAsState()

@@ -840,10 +840,13 @@ Always provide the technician with this post-repair QC checklist:
                         "💡 *Нажми на фото для детального увеличения (Pinch-to-zoom) или сохрани схему в Базу Знаний.*"
             }
 
-            // If live images found from web search
-            val primaryImage = liveImages.firstOrNull()
-            val imgUrl = primaryImage?.link ?: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgUniversal_Testpoint_Pinout_GSM.jpg"
-            val imageTitle = primaryImage?.title ?: "Схема и тестпоинт $detectedModel"
+            // If live images found from web search (strictly filtered for actual PCB/testpoints)
+            val filteredLiveImages = liveImages.filter { img ->
+                !img.link.contains("placeholder", ignoreCase = true) &&
+                !img.link.contains("Universal_Testpoint_Pinout", ignoreCase = true) &&
+                !img.title.contains("case", ignoreCase = true) &&
+                !img.title.contains("чехол", ignoreCase = true)
+            }
 
             val tpDesc = when {
                 detectedModel.contains("Honor X8", ignoreCase = true) || detectedModel.contains("X8", ignoreCase = true) ->
@@ -870,11 +873,11 @@ Always provide the technician with this post-repair QC checklist:
                     "3. Вставь Type-C кабель -> порт 'Qualcomm 9008'."
 
                 detectedModel.contains("A51") || detectedModel.contains("A50") || detectedModel.contains("A52") ->
-                    "**Samsung Galaxy A51 (Exynos 9611 - EUB Mode)**\n" +
-                    "📍 Контрольная точка TP_EUB находится возле микросхемы питания PMIC.\n" +
+                    "**Samsung Galaxy A51 / A52 (EUB / EDL Mode)**\n" +
+                    "📍 Контрольная точка TP_EUB находится возле микросхемы питания PMIC под экраном.\n" +
                     "1. Сними защитную пластину и отсоедини шлейф АКБ.\n" +
-                    "2. Замкни точку TP_EUB на металлическую рамку (GND/Земля).\n" +
-                    "3. Подключи USB -> В Диспетчере появится 'Exynos USB Booting'.\n" +
+                    "2. Замкни точку TP на металлическую рамку (GND/Земля).\n" +
+                    "3. Подключи USB -> В Диспетчере появится аварийный порт.\n" +
                     "4. В SamFw Tool / Chimera сбрось блокировку FRP в 1 клик."
 
                 else ->
@@ -886,16 +889,21 @@ Always provide the technician with this post-repair QC checklist:
                     "4. Запусти сервисную утилиту (UnlockTool / Chimera / SP Flash Tool) и выбери сброс FRP."
             }
 
-            val imagesMd = buildString {
-                append("![$imageTitle]($imgUrl)")
-                if (liveImages.size > 1) {
-                    liveImages.drop(1).take(2).forEach { addImg ->
-                        append("\n\n![${addImg.title}](${addImg.link})")
+            val imagesMd = if (filteredLiveImages.isNotEmpty()) {
+                buildString {
+                    val primaryImage = filteredLiveImages.first()
+                    append("\n\n![${primaryImage.title}](${primaryImage.link})")
+                    if (filteredLiveImages.size > 1) {
+                        filteredLiveImages.drop(1).take(2).forEach { addImg ->
+                            append("\n\n![${addImg.title}](${addImg.link})")
+                        }
                     }
                 }
+            } else {
+                "\n\n📷 *Совет мастера: чтобы точно определить тестпоинт и не перепутать ревизию платы, прикрепи фото платы под микроскопом через скрепку — я сразу укажу нужные точки прямо на твоём снимке!*"
             }
 
-            return "${correctionPrefix}Вот точные данные и найденная схема для **$detectedModel**:\n\n$tpDesc\n\n$imagesMd\n\n⚡ **Совет**: Все замеры и замыкания делай тонким изолированным пинцетом при обязательно отключенном аккумуляторе!"
+            return "${correctionPrefix}Вот точные данные и распиновка для **$detectedModel**:\n\n$tpDesc$imagesMd\n\n⚡ **Совет**: Все замеры и замыкания делай тонким изолированным пинцетом при обязательно отключенном аккумуляторе!"
         }
 
         // Network / SIM / Signal problems
